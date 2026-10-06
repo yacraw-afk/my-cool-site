@@ -1,0 +1,46 @@
+/* Hotspot Console v3 — mockup layout (sidebar + stats + table) */
+
+:root{
+  --bg:#0B0E14;
+  --sidebar:#0D1118;
+  --panel:#11151C;
+  --glass: rgba(17,21,28,0.65);
+  --glass-strong: rgba(17,21,28,0.82);
+  --glass-border: rgba(255,255,255,0.07);
+  --border:#1E2530;
+  --border-soft:#181D26;
+  --text:#E6EAF0;
+  --text-dim:#8B95A8;
+  --text-faint:#5A6475;
+  --accent:#22D3EE;
+  --accent-dim:#0E7490;
+  --accent-soft:rgba(34,211,238,0.12);
+  --good:#34D399;
+  --good-soft:rgba(52,211,153,0.13);
+  --bad:#F87171;
+  --bad-soft:rgba(248,113,113,0.13);
+  --neutral:#94A3B8;
+  --neutral-soft:rgba(148,163,184,0.12);
+  --violet:#A78BFA;
+  --violet-soft:rgba(167,139,250,0.13);
+  --radius-lg:14px;
+  --radius-md:10px;
+  --radius-sm:7px;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+  --sans:'IBM Plex Sans', system-ui, sans-serif;
+  --ease: cubic-bezier(.4,0,.2,1);
+  --sidebar-w: 220px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* Full CSS truncated for deploy - see attachments */
+.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;height:100vh;height:100dvh;min-height:0;overflow:hidden;}
