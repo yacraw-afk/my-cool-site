@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B0E14">
+  <title>Wi‑Fi Hotspot · Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0B0E14;
+      --text: #E8EEF7;
+      --text-dim: #9AA8BC;
+      --accent: #22D3EE;
+      --border: rgba(255,255,255,0.08);
+      --surface: rgba(255,255,255,0.04);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(34,211,238,0.08), transparent 55%),
+        radial-gradient(ellipse 700px 400px at 90% 10%, rgba(167,139,250,0.05), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      padding: 24px;
+    }
+    .card {
+      width: min(440px, 100%);
+      padding: 28px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(17,21,30,0.92);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    .mark {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(155deg, rgba(34,211,238,0.12), transparent 70%);
+      border: 1px solid rgba(34,211,238,0.35);
+      color: var(--accent);
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 700; font-size: 14px;
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0 0 6px; font-size: 1.35rem; letter-spacing: -0.02em; }
+    p { margin: 0 0 22px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
+    .links { display: grid; gap: 10px; }
+    a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 600; font-size: 0.9rem;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    a:hover { border-color: rgba(34,211,238,0.35); transform: translateY(-1px); }
+    a span { font-family: "IBM Plex Mono", monospace; color: var(--accent); font-size: 1.1rem; }
+    a small { display: block; margin-top: 3px; color: var(--text-dim); font-weight: 400; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">RB</div>
+    <h1>Wi‑Fi Hotspot</h1>
+    <p>Выберите раздел портала. Кабинет и консоль — демо-страницы (переменные MikroTik на Vercel не подставляются).</p>
+    <div class="links">
+      <a href="/status.html">
+        <span>◎</span>
+        <div>
+          Личный кабинет
+          <small>status.html — сессия, тариф, сервисы</small>
+        </div>
+      </a>
+      <a href="/hotspot-console.html">
+        <span>◉</span>
+        <div>
+          Hotspot Console
+          <small>Админ-панель RouterOS / User Manager</small>
+        </div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
