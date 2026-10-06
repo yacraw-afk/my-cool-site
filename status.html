@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0E14">
+  <meta http-equiv="refresh" content="60">
+  <title>Кабинет · Wi‑Fi Hotspot</title>
+  <link rel="stylesheet" href="assets/css/app.css?v=19">
+  <script src="assets/js/cabinet-config.js?v=2"></script>
+</head>
+<body class="cab-page">
+  <div class="app-shell">
+    <div class="workspace">
+      <header class="topbar">
+        <div class="brand topbar__brand">
+          <span class="brand__mark">RB</span>
+          <span>
+            <strong>Личный кабинет</strong>
+            <small>Активная сессия</small>
+          </span>
+        </div>
+        <nav class="top-links" aria-label="Разделы">
+          <a href="#session">Сессия</a>
+          <a href="#payments">Платежи</a>
+          <a href="#services">Сервисы</a>
+          <a class="is-exit" href="$(link-logout)">Выйти</a>
+        </nav>
+        <span class="network-pill">
+          <span class="network-pill__dot"></span>
+          онлайн
+        </span>
+      </header>
+
+      <main class="main-content">
+        $(if error)
+        <div class="panel" style="margin-bottom:14px;border-color:rgba(248,113,113,.35)">
+          <p style="color:var(--bad);font-family:var(--mono);font-size:13px;margin:0">$(error)</p>
+        </div>
+        $(endif)
+
+        <div class="cab-banner">
+          <div class="cab-banner__main">
+            <div class="cab-avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21a8 8 0 0 0-16 0"/>
+                <circle cx="12" cy="8" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <h1>Привет, <span class="cab-user">$(username)</span></h1>
+              <p>Вы подключены к сети. Ниже — данные сессии. Ниже — сессия, тариф и сервисы.</p>
+            </div>
+          </div>
+          <span class="online-pill"><i></i> в сети</span>
+        </div>
+
+        <div class="cab-layout">
+          <div>
+            <div class="panel" id="session">
+              <p class="section-title">Сессия</p>
+              <div class="cab-grid cab-grid--4">
+                <div class="cab-stat">
+                  <div class="k">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M20 21a8 8 0 0 0-16 0"/>
+                      <circle cx="12" cy="8" r="4"/>
+                    </svg>
+                    Учётная запись
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Логин</span>
+                    <span class="v addr" id="sessUser">$(username)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Способ</span>
+                    <span class="v muted" id="sessLoginBy">$(login-by)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Тариф</span>
+                    <span class="v accent" id="sessTariff">определяем…</span>
+                  </div>
+                </div>
+                <div class="cab-stat">
+                  <div class="k">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="2" y="6" width="20" height="12" rx="2"/>
+                      <path d="M6 12h.01M10 12h4"/>
+                    </svg>
+                    Адреса
+                  </div>
+                  <div class="line">
+                    <span class="lbl">IP</span>
+                    <span class="v addr" id="sessIp">$(ip)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">MAC</span>
+                    <span class="v addr" id="sessMac">$(mac)</span>
+                  </div>
+                </div>
+                <div class="cab-stat cab-stat--highlight">
+                  <div class="k">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9"/>
+                      <path d="M12 7v5l3 2"/>
+                    </svg>
+                    Время доступа
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Онлайн</span>
+                    <span class="v accent" data-fmt-time>$(uptime)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Осталось</span>
+                    <span class="v good" id="sessLeft" data-fmt-left>$(session-time-left)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Лимит</span>
+                    <span class="v muted" id="sessLimit" data-fmt-timeout>$(session-timeout)</span>
+                  </div>
+                  <span id="sessLeftSecs" hidden>$(session-time-left-secs)</span>
+                  <span id="sessTimeoutSecs" hidden>$(session-timeout-secs)</span>
+                </div>
+                <div class="cab-stat">
+                  <div class="k">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4v16"/>
+                      <path d="M7 9l5-5 5 5"/>
+                      <path d="M7 15l5 5 5-5"/>
+                    </svg>
+                    Трафик
+                  </div>
+                  <div class="line">
+                    <span class="lbl">↓ Вход</span>
+                    <span class="v" id="bytesInNice">$(bytes-in-nice)</span><span id="bytesInRaw" hidden>$(bytes-in)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">↑ Исход</span>
+                    <span class="v" id="bytesOutNice">$(bytes-out-nice)</span><span id="bytesOutRaw" hidden>$(bytes-out)</span>
+                  </div>
+                  <div class="line">
+                    <span class="lbl">Ост. ↓/↑</span>
+                    <span class="v muted" id="sessRemain">$(remain-bytes-in) / $(remain-bytes-out)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="cab-actions">
+                <a class="button button--primary" href="$(link-status)">Обновить</a>
+                <a class="button button--secondary" href="$(link-logout)" style="border-color:rgba(248,113,113,.35);color:var(--bad)">Выйти из сети</a>
+              </div>
+            </div>
+
+            <div class="panel" id="payments">
+              <p class="section-title">Платежи и тариф</p>
+              <table class="pay-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Тариф</th>
+                    <th>Логин / код</th>
+                    <th>Сумма</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody id="payBody">
+                  <tr>
+                    <td colspan="5">
+                      <div class="pay-empty">Загрузка…</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <span id="payUser" hidden>$(username)</span>
+              <p class="pay-hint">
+                Полная история платежей на роутере не хранится (нет внешней базы).
+                Ниже — текущий доступ. Пополнение баланса делает администратор в консоли
+                («Клиенты» → выбрать → <b>+ Средства</b>).
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel" id="services">
+              <p class="section-title">Сервисы</p>
+              <div class="svc-grid">
+                <button type="button" class="svc-card" id="svcExtend" data-svc="extend">
+                  <div class="svc-ico">＋</div>
+                  <strong>Продлить доступ</strong>
+                  <small>Выбрать пакет и написать админу</small>
+                </button>
+                <button type="button" class="svc-card" id="svcTariff" data-svc="tariff">
+                  <div class="svc-ico">⇅</div>
+                  <strong>Смена тарифа</strong>
+                  <small>Другой пакет (ваучер)</small>
+                </button>
+                <button type="button" class="svc-card" id="svcDevices" data-svc="devices">
+                  <div class="svc-ico">◎</div>
+                  <strong>Устройства</strong>
+                  <small>MAC этой сессии и история</small>
+                </button>
+                <button type="button" class="svc-card" id="svcSupport" data-svc="support">
+                  <div class="svc-ico">✉</div>
+                  <strong>Поддержка</strong>
+                  <small>WhatsApp / Telegram</small>
+                </button>
+              </div>
+              <div id="svcPanel" class="svc-panel" hidden></div>
+            </div>
+
+            <div class="panel" id="usage">
+              <p class="section-title">Активность канала</p>
+              <div class="wave-head">
+                <span class="wave-live"><span class="wave-live-dot"></span> live</span>
+                <span class="wave-meta" id="waveMeta">—</span>
+              </div>
+              <div class="wave-wrap">
+                <canvas id="waveCanvas" width="640" height="120" aria-label="График активности"></canvas>
+              </div>
+              <div class="wave-legend">
+                <span><i class="wdot wdot--up"></i> рост</span>
+                <span><i class="wdot wdot--dn"></i> спад</span>
+                <span><i class="wdot wdot--vol"></i> объём</span>
+                <span id="waveTotal">всего —</span>
+              </div>
+              <p class="usage-note">Стиль trading-графика: линия/свечи сверху, объём снизу. Анимация live; уровень «оживления» зависит от трафика сессии.</p>
+            </div>
+
+            <div class="panel">
+              <p class="section-title">Подсказка</p>
+              <p style="margin:0;color:var(--text-dim);font-size:13px;line-height:1.55">
+                Страница обновляется автоматически.
+                Чтобы выйти из Wi‑Fi, нажмите <b>Выйти из сети</b>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <span>Wi‑Fi Hotspot · кабинет</span>
+        <span>$(username)</span>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // 3m47s / 1h2m3s / 2d3h → "3 мин 47 сек"
+      function formatMtTime(raw) {
+        var s = String(raw || "").trim();
+        if (!s || s.indexOf("$(") !== -1) return s;
+        var d = 0, h = 0, m = 0, sec = 0;
+        var md = s.match(/(\d+)d/); if (md) d = +md[1];
+        var mh = s.match(/(\d+)h/); if (mh) h = +mh[1];
+        var mm = s.match(/(\d+)m/); if (mm) m = +mm[1];
+        var ms = s.match(/(\d+)s/); if (ms) sec = +ms[1];
+        if (!d && !h && !m && !sec && !/^\d/.test(s)) return s;
+        var parts = [];
+        if (d) parts.push(d + " д");
+        if (h) parts.push(h + " ч");
+        if (m) parts.push(m + " мин");
+        if (sec || !parts.length) parts.push(sec + " сек");
+        return parts.join(" ");
+      }
+      function fmtSecs(sec) {
+        sec = parseInt(sec, 10);
+        if (!isFinite(sec) || sec < 0) return "";
+        var d = Math.floor(sec / 86400); sec %= 86400;
+        var h = Math.floor(sec / 3600); sec %= 3600;
+        var m = Math.floor(sec / 60); var s = sec % 60;
+        var parts = [];
+        if (d) parts.push(d + " д");
+        if (h) parts.push(h + " ч");
+        if (m) parts.push(m + " мин");
+        if (s || !parts.length) parts.push(s + " сек");
+        return parts.join(" ");
+      }
+      function isEmptyVar(raw) {
+        raw = String(raw || "").trim();
+        return !raw || raw.indexOf("$(") !== -1 || raw === "none" || raw === "unlimited";
+      }
+
+      document.querySelectorAll("[data-fmt-time]").forEach(function (el) {
+        var raw = el.textContent;
+        var f = formatMtTime(raw);
+        if (f) el.textContent = f;
+      });
+
+      // Осталось: session-time-left, иначе session-time-left-secs
+      document.querySelectorAll("[data-fmt-left]").forEach(function (el) {
+        var raw = String(el.textContent || "").trim();
+        el.setAttribute("data-raw", raw);
+        var secsEl = document.getElementById("sessLeftSecs");
+        var secsRaw = secsEl ? String(secsEl.textContent || "").trim() : "";
+        var formatted = "";
+        if (!isEmptyVar(raw) && raw !== "0s" && raw !== "0" && !/^0+[smhd]?$/i.test(raw)) {
+          formatted = formatMtTime(raw) || raw;
+        } else if (secsRaw && secsRaw.indexOf("$(") === -1 && /^\d+$/.test(secsRaw) && parseInt(secsRaw, 10) > 0) {
+          formatted = fmtSecs(secsRaw);
+        }
+        if (formatted) {
+          el.textContent = formatted;
+          el.classList.add("good");
+          el.classList.remove("muted");
+        } else {
+          el.textContent = "Без ограничений";
+          el.classList.remove("good");
+          el.classList.add("muted");
+        }
+      });
+
+      document.querySelectorAll("[data-fmt-timeout]").forEach(function (el) {
+        var raw = String(el.textContent || "").trim();
+        el.setAttribute("data-raw", raw);
+        var secsEl = document.getElementById("sessTimeoutSecs");
+        var secsRaw = secsEl ? String(secsEl.textContent || "").trim() : "";
+        if (!isEmptyVar(raw) && raw !== "0s" && raw !== "0") {
+          el.textContent = formatMtTime(raw) || raw;
+        } else if (secsRaw && secsRaw.indexOf("$(") === -1 && /^\d+$/.test(secsRaw) && parseInt(secsRaw, 10) > 0) {
+          el.textContent = fmtSecs(secsRaw);
+        } else {
+          el.textContent = "не задан";
+        }
+      });
+
+      // login-by: понятные подписи
+      var lb = document.getElementById("sessLoginBy");
+      if (lb) {
+        var rawLb = String(lb.textContent || "").trim().toLowerCase();
+        var map = {
+          "https": "через HTTPS",
+          "http": "через HTTP",
+          "http,https": "веб-форма",
+          "https,http": "веб-форма",
+          "cookie": "сохранённая сессия",
+          "mac": "по MAC",
+          "trial": "пробный доступ",
+          "chap": "CHAP",
+          "pap": "PAP"
+        };
+        if (isEmptyVar(lb.textContent)) lb.textContent = "—";
+        else if (map[rawLb]) lb.textContent = map[rawLb];
+      }
+
+      /* тариф: status не отдаёт profile UM — сопоставляем лимит сессии с packages */
+      function parseMtToSeconds(raw) {
+        raw = String(raw || "").trim();
+        if (!raw || raw.indexOf("$(") !== -1) return 0;
+        if (/^\d+$/.test(raw)) return parseInt(raw, 10) || 0;
+        var d = 0, h = 0, m = 0, s = 0;
+        // EN: 1d2h3m4s  |  RU: 1 д 2 ч 3 мин 4 сек
+        var md = raw.match(/(\d+)\s*d\b/i) || raw.match(/(\d+)\s*д/i); if (md) d = +md[1];
+        var mh = raw.match(/(\d+)\s*h\b/i) || raw.match(/(\d+)\s*ч/i); if (mh) h = +mh[1];
+        var mm = raw.match(/(\d+)\s*m(?![is])/i) || raw.match(/(\d+)\s*мин/i); if (mm) m = +mm[1];
+        var ms = raw.match(/(\d+)\s*s\b/i) || raw.match(/(\d+)\s*сек/i); if (ms) s = +ms[1];
+        var col = raw.match(/^(?:(\d+)d\s+)?(\d{1,2}):(\d{2}):(\d{2})$/i);
+        if (col) {
+          d = col[1] ? +col[1] : d;
+          h = +col[2]; m = +col[3]; s = +col[4];
+        }
+        return d * 86400 + h * 3600 + m * 60 + s;
+      }
+      function detectTariff(pkgs) {
+        pkgs = pkgs || [];
+        var limitEl = document.getElementById("sessLimit");
+        var leftEl = document.getElementById("sessLeft");
+        var leftSecsEl = document.getElementById("sessLeftSecs");
+        var toSecsEl = document.getElementById("sessTimeoutSecs");
+        var cands = [];
+        if (limitEl) cands.push(parseMtToSeconds(limitEl.getAttribute("data-raw") || limitEl.textContent));
+        if (toSecsEl) cands.push(parseMtToSeconds(toSecsEl.textContent));
+        if (leftSecsEl) cands.push(parseMtToSeconds(leftSecsEl.textContent));
+        if (leftEl) cands.push(parseMtToSeconds(leftEl.getAttribute("data-raw") || leftEl.textContent));
+        var bestSec = 0;
+        cands.forEach(function (n) { if (n > bestSec) bestSec = n; });
+        if (!bestSec || !pkgs.length) return null;
+        // нормализуем seconds у пакетов
+        pkgs.forEach(function (p) {
+          if (!p.seconds) {
+            if (p.profile === "1hour" || p.id === "1h") p.seconds = 3600;
+            else if (p.profile === "1day" || p.id === "1d") p.seconds = 86400;
+            else if (p.profile === "7day" || p.profile === "7days" || p.id === "7d") p.seconds = 604800;
+          }
+        });
+        // 1) точное совпадение с полным пакетом (±15%)
+        var best = null, bestDiff = Infinity;
+        pkgs.forEach(function (p) {
+          var ps = p.seconds || 0;
+          if (!ps) return;
+          var diff = Math.abs(ps - bestSec);
+          if (diff < bestDiff) { bestDiff = diff; best = p; }
+        });
+        if (best && bestDiff <= Math.max((best.seconds || 0) * 0.15, 600)) return best;
+        // 2) остаток времени «внутри» пакета (уже частично израсходован)
+        var fit = null;
+        pkgs.forEach(function (p) {
+          var ps = p.seconds || 0;
+          if (!ps) return;
+          if (bestSec <= ps * 1.02 && bestSec >= ps * 0.05) {
+            if (!fit || ps < fit.seconds) fit = p; // ближайший больший/равный пакет
+          }
+        });
+        // предпочти пакети, где bestSec ближе к полному сроку (сверху)
+        if (fit) {
+          var candidates = pkgs.filter(function (p) {
+            return p.seconds && bestSec <= p.seconds * 1.02 && bestSec >= p.seconds * 0.05;
+          });
+          candidates.sort(function (a, b) {
+            return Math.abs(a.seconds - bestSec) - Math.abs(b.seconds - bestSec);
+          });
+          return candidates[0] || fit;
+        }
+        return null;
+      }
+
+      // remain bytes: если переменные не подставились — скрыть строку
+      var rem = document.getElementById("sessRemain");
+      if (rem) {
+        var rt = String(rem.textContent || "").trim();
+        if (rt.indexOf("$(") !== -1 || rt === "/" || rt === " / " || /^0\s*\/\s*0$/.test(rt)) {
+          var line = rem.closest(".line");
+          if (line) line.style.display = "none";
+        }
+      }
+
+      /* —— сервисы —— */
+      var cfg = window.CABINET_CONFIG || {};
+      var _detected = detectTariff(cfg.packages || []);
+      window.__currentTariff = _detected;
+      var tariffEl = document.getElementById("sessTariff");
+      if (tariffEl) {
+        if (_detected) {
+          tariffEl.textContent = _detected.name + " · " + _detected.price;
+          tariffEl.classList.add("accent");
+          tariffEl.classList.remove("muted");
+        } else {
+          // fallback: показать срок лимита сессии как «пакет»
+          var limEl = document.getElementById("sessLimit");
+          var limTxt = limEl ? String(limEl.textContent || "").trim() : "";
+          if (limTxt && limTxt !== "не задан" && limTxt.indexOf("$(") === -1) {
+            tariffEl.textContent = "пакет · " + limTxt;
+            tariffEl.classList.add("accent");
+            tariffEl.classList.remove("muted");
+          } else {
+            tariffEl.textContent = "не определён";
+            tariffEl.classList.remove("accent");
+            tariffEl.classList.add("muted");
+          }
+        }
+      }
+      // Блок «Платежи и тариф»
+      (function fillPayments(){
+        var body = document.getElementById("payBody");
+        var userEl = document.getElementById("payUser");
+        var userName = userEl ? String(userEl.textContent || "").trim() : "";
+        if (userName.indexOf("$(") !== -1) userName = "";
+        var tName = "—";
+        var tPrice = "—";
+        if (_detected) {
+          tName = _detected.name;
+          tPrice = _detected.price || "—";
+        } else {
+          var limEl2 = document.getElementById("sessLimit");
+          var lim2 = limEl2 ? String(limEl2.textContent || "").trim() : "";
+          if (lim2 && lim2 !== "не задан") tName = lim2;
+          else tName = "Не определён";
+        }
+        var now = new Date();
+        var ds = now.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
+        if (body) {
+          body.innerHTML = "<tr>"
+            + "<td>" + ds + "</td>"
+            + "<td><strong style=\"color:var(--accent)\">" + tName + "</strong></td>"
+            + "<td class=\"addr\">" + (userName || "—") + "</td>"
+            + "<td>" + tPrice + "</td>"
+            + "<td><span class=\"pay-status pay-status--ok\">активен</span></td>"
+            + "</tr>";
+        }
+      })();
+
+      (function startWave(){
+        var canvas = document.getElementById("waveCanvas");
+        if (!canvas || !canvas.getContext) return;
+        var ctx = canvas.getContext("2d");
+        var meta = document.getElementById("waveMeta");
+        var totalEl = document.getElementById("waveTotal");
+
+        function parseNiceBytes(s){
+          s = String(s||"").trim().replace(",", ".");
+          if (!s || s.indexOf("$(") !== -1) return 0;
+          var m = s.match(/([\d.]+)\s*(B|KiB|MiB|GiB|KB|MB|GB|k|M|G)?/i);
+          if (!m) return 0;
+          var v = parseFloat(m[1])||0;
+          var u = (m[2]||"B").toUpperCase();
+          if (u === "KIB" || u === "KB" || u === "K") return v * 1024;
+          if (u === "MIB" || u === "MB" || u === "M") return v * 1048576;
+          if (u === "GIB" || u === "GB" || u === "G") return v * 1073741824;
+          return v;
+        }
+        function fmtBytes(n){
+          n = Number(n)||0;
+          if (n < 1048576) return (n/1024).toFixed(1) + " KiB";
+          if (n < 1073741824) return (n/1048576).toFixed(1) + " MiB";
+          return (n/1073741824).toFixed(2) + " GiB";
+        }
+
+        var inNice = document.getElementById("bytesInNice");
+        var outNice = document.getElementById("bytesOutNice");
+        var inRaw = document.getElementById("bytesInRaw");
+        var outRaw = document.getElementById("bytesOutRaw");
+        var bin = 0, bout = 0;
+        if (inRaw) {
+          var ir = String(inRaw.textContent||"").trim();
+          if (ir.indexOf("$(") === -1) bin = parseInt(ir,10)||0;
+        }
+        if (outRaw) {
+          var or_ = String(outRaw.textContent||"").trim();
+          if (or_.indexOf("$(") === -1) bout = parseInt(or_,10)||0;
+        }
+        if (!bin && inNice) bin = parseNiceBytes(inNice.textContent);
+        if (!bout && outNice) bout = parseNiceBytes(outNice.textContent);
+        var total = bin + bout;
+        if (totalEl) totalEl.textContent = "всего " + fmtBytes(total);
+        if (meta) {
+          meta.textContent = (inNice ? String(inNice.textContent).trim() : fmtBytes(bin))
+            + "  ·  " + (outNice ? String(outNice.textContent).trim() : fmtBytes(bout));
+        }
+
+        var intensity = 0.25;
+        if (total > 0) intensity = Math.min(1, 0.2 + Math.log10(total + 10) / 7);
+        var speedBoost = 0.35;
+        try {
+          var prev = sessionStorage.getItem("cab_wave_bytes");
+          var prevT = sessionStorage.getItem("cab_wave_t");
+          var now = Date.now();
+          if (prev && prevT) {
+            var dBytes = total - parseFloat(prev);
+            var dSec = Math.max(0.5, (now - parseFloat(prevT)) / 1000);
+            if (dBytes > 0) {
+              speedBoost = Math.min(1.15, 0.3 + Math.log10(dBytes / dSec + 10) / 5);
+            } else {
+              speedBoost = 0.22;
+            }
+          }
+          sessionStorage.setItem("cab_wave_bytes", String(total));
+          sessionStorage.setItem("cab_wave_t", String(now));
+        } catch (e) {}
+
+        // история цены (линия) и объёма
+        var MAX = 90;
+        var prices = [];
+        var volumes = [];
+        var price = 50;
+        var i;
+        for (i = 0; i < MAX; i++) {
+          prices.push(50);
+          volumes.push(0.15);
+        }
+
+        var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var acc = 0;
+        var lastTs = 0;
+
+        function resize(){
+          var wrap = canvas.parentElement;
+          var w = Math.max(280, wrap ? wrap.clientWidth : 320);
+          var h = window.innerWidth < 520 ? 140 : 168;
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+          canvas.style.width = w + "px";
+          canvas.style.height = h + "px";
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        function stepSim(dt){
+          // «рыночная» динамика, амплитуда от трафика
+          var vol = (0.4 + intensity * 1.4) * (0.5 + speedBoost);
+          var drift = Math.sin(acc * 0.7) * 0.15 * intensity;
+          var shock = (Math.random() - 0.5) * vol * 2.2;
+          price = price + drift + shock;
+          if (price < 8) price = 8 + Math.random() * 3;
+          if (price > 92) price = 92 - Math.random() * 3;
+          var vBar = Math.abs(shock) / (vol * 2.2 + 0.01);
+          vBar = Math.min(1, 0.12 + vBar * 0.85 * speedBoost + Math.random() * 0.08);
+          prices.push(price);
+          volumes.push(vBar);
+          if (prices.length > MAX) prices.shift();
+          if (volumes.length > MAX) volumes.shift();
+        }
+
+        function draw(){
+          var w = canvas.clientWidth;
+          var h = canvas.clientHeight;
+          ctx.clearRect(0, 0, w, h);
+
+          var padL = 4, padR = 4, padT = 8;
+          var split = Math.floor(h * 0.62);
+          var chartH = split - padT - 6;
+          var volTop = split + 4;
+          var volH = h - volTop - 6;
+          var n = prices.length;
+          var slot = (w - padL - padR) / Math.max(1, n - 1);
+
+          // зоны
+          ctx.fillStyle = "rgba(34,211,238,0.03)";
+          ctx.fillRect(0, 0, w, split);
+          ctx.fillStyle = "rgba(129,140,248,0.04)";
+          ctx.fillRect(0, split, w, h - split);
+
+          // разделитель как на референсе
+          ctx.strokeStyle = "rgba(248,113,113,0.55)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, split);
+          ctx.lineTo(w, split);
+          ctx.stroke();
+
+          // сетка верхней зоны
+          ctx.strokeStyle = "rgba(255,255,255,0.05)";
+          ctx.lineWidth = 1;
+          for (i = 1; i < 4; i++) {
+            var gy = padT + (chartH / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padL, gy);
+            ctx.lineTo(w - padR, gy);
+            ctx.stroke();
+          }
+
+          // линия + «свечи» (тонкие палочки high-low)
+          var minP = 100, maxP = 0;
+          for (i = 0; i < n; i++) {
+            if (prices[i] < minP) minP = prices[i];
+            if (prices[i] > maxP) maxP = prices[i];
+          }
+          var span = Math.max(8, maxP - minP);
+          minP -= span * 0.12;
+          maxP += span * 0.12;
+          span = maxP - minP;
+
+          function yAt(p){
+            return padT + chartH - ((p - minP) / span) * chartH;
+          }
+
+          // заливка под линией
+          ctx.beginPath();
+          for (i = 0; i < n; i++) {
+            var x = padL + i * slot;
+            var y = yAt(prices[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.lineTo(padL + (n - 1) * slot, padT + chartH);
+          ctx.lineTo(padL, padT + chartH);
+          ctx.closePath();
+          var fillGrad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+          fillGrad.addColorStop(0, "rgba(34,211,238,0.22)");
+          fillGrad.addColorStop(1, "rgba(34,211,238,0.01)");
+          ctx.fillStyle = fillGrad;
+          ctx.fill();
+
+          // линия
+          ctx.beginPath();
+          for (i = 0; i < n; i++) {
+            x = padL + i * slot;
+            y = yAt(prices[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = "rgba(34,211,238,0.95)";
+          ctx.lineWidth = 1.5;
+          ctx.lineJoin = "round";
+          ctx.stroke();
+
+          // мини-свечи (цвет по направлению)
+          var bodyW = Math.max(1.5, slot * 0.35);
+          for (i = 1; i < n; i++) {
+            var up = prices[i] >= prices[i - 1];
+            x = padL + i * slot;
+            var y0 = yAt(prices[i - 1]);
+            var y1 = yAt(prices[i]);
+            var yTop = Math.min(y0, y1);
+            var yBot = Math.max(y0, y1);
+            if (yBot - yTop < 1) yBot = yTop + 1;
+            ctx.fillStyle = up ? "rgba(52,211,153,0.85)" : "rgba(248,113,113,0.85)";
+            ctx.fillRect(x - bodyW / 2, yTop, bodyW, yBot - yTop);
+            // wick
+            ctx.strokeStyle = up ? "rgba(52,211,153,0.5)" : "rgba(248,113,113,0.5)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, yTop - 2);
+            ctx.lineTo(x, yBot + 2);
+            ctx.stroke();
+          }
+
+          // volume bars (нижняя панель)
+          var maxV = 0.01;
+          for (i = 0; i < n; i++) if (volumes[i] > maxV) maxV = volumes[i];
+          var barW = Math.max(1.5, slot * 0.55);
+          for (i = 0; i < n; i++) {
+            x = padL + i * slot;
+            var bh = (volumes[i] / maxV) * volH;
+            var up2 = i === 0 ? true : prices[i] >= prices[i - 1];
+            ctx.fillStyle = up2 ? "rgba(129,140,248,0.55)" : "rgba(96,165,250,0.45)";
+            ctx.fillRect(x - barW / 2, volTop + volH - bh, barW, bh);
+          }
+
+          // нижняя красная линия рамки volume
+          ctx.strokeStyle = "rgba(248,113,113,0.35)";
+          ctx.beginPath();
+          ctx.moveTo(0, h - 1);
+          ctx.lineTo(w, h - 1);
+          ctx.stroke();
+        }
+
+        function loop(ts){
+          if (!lastTs) lastTs = ts;
+          var dt = Math.min(0.05, (ts - lastTs) / 1000);
+          lastTs = ts;
+          acc += dt;
+          // новый столбец ~8–12 раз/сек в зависимости от активности
+          var interval = reduced ? 0.35 : (0.09 / (0.55 + speedBoost * 0.7));
+          if (acc >= interval) {
+            acc = 0;
+            stepSim(dt);
+          }
+          draw();
+          requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+
+        try {
+          if (!window.__cabWaveReload) {
+            window.__cabWaveReload = true;
+            setTimeout(function(){
+              var a = document.querySelector('a.button--primary[href*="status"]');
+              if (a && a.href) location.href = a.href;
+            }, 25000);
+          }
+        } catch (e) {}
+      })();
+
+      var panel = document.getElementById("svcPanel");
+      var userEl = document.querySelector(".cab-user");
+      var userName = userEl ? userEl.textContent.trim() : "";
+      if (userName.indexOf("$(") !== -1) userName = "";
+      var macEl = document.getElementById("sessMac");
+      var currentMac = macEl ? macEl.textContent.trim() : "";
+      if (currentMac.indexOf("$(") !== -1) currentMac = "";
+
+      function waUrl(text) {
+        var n = String(cfg.whatsapp || "").replace(/\D/g, "");
+        if (!n) return "";
+        return "https://wa.me/" + n + "?text=" + encodeURIComponent(text || "");
+      }
+      function tgUrl() {
+        var t = String(cfg.telegram || "").trim();
+        if (!t) return "";
+        if (/^https?:\/\//i.test(t)) return t;
+        return "https://t.me/" + t.replace(/^@/, "");
+      }
+      function linkButtons(orderText) {
+        var html = '<div class="svc-links">';
+        var w = waUrl(orderText);
+        var g = tgUrl();
+        if (w) html += '<a class="button button--primary" target="_blank" rel="noopener" href="' + w + '">WhatsApp</a>';
+        if (g) html += '<a class="button button--secondary" target="_blank" rel="noopener" href="' + g + '">Telegram</a>';
+        if (!w && !g) {
+          html += '<p style="margin:0;color:var(--text-faint);font-size:12px;font-family:var(--mono)">Укажите whatsapp или telegram в assets/js/cabinet-config.js?v=2</p>';
+        }
+        html += "</div>";
+        return html;
+      }
+      function showPanel(title, bodyHtml) {
+        panel.hidden = false;
+        panel.innerHTML = "<h3>" + title + "</h3>" + bodyHtml;
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      function botOrderUrl(profile) {
+        var t = String(cfg.telegram || "").trim();
+        if (!t) return "";
+        if (/^https?:\/\//i.test(t)) {
+          var base = t.split("?")[0];
+          return base + "?start=order_" + encodeURIComponent(profile);
+        }
+        return "https://t.me/" + t.replace(/^@/, "") + "?start=order_" + encodeURIComponent(profile);
+      }
+      function packagesHtml(mode) {
+        var list = cfg.packages || [];
+        if (!list.length) return "<p>Тарифы не заданы в cabinet-config.js?v=2</p>";
+        var cur = window.__currentTariff;
+        var html = "";
+        if (cur) {
+          html += '<p style="margin:0 0 12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(34,211,238,.3);background:rgba(34,211,238,.08);font-size:13px;">'
+            + "Сейчас: <b style=\"color:var(--accent)\">" + cur.name + "</b> · " + cur.price
+            + (mode === "tariff" ? " — выберите новый пакет ниже" : "")
+            + "</p>";
+        } else {
+          html += '<p style="margin:0 0 12px;color:var(--text-faint);font-size:12px;">Текущий тариф не определён (нет лимита сессии на стороне Hotspot). Выберите пакет:</p>';
+        }
+        html += '<div class="pkg-list">';
+        list.forEach(function (pkg) {
+          var href = botOrderUrl(pkg.profile);
+          var isCur = cur && cur.profile === pkg.profile;
+          html += '<button type="button" class="pkg-item" data-href="' + String(href).replace(/"/g, "&quot;") + '"'
+            + (isCur ? ' style="border-color:var(--accent);"' : "") + ">"
+            + "<div><strong>" + pkg.name + (isCur ? " · текущий" : "") + "</strong><span>" + pkg.duration + " · " + pkg.profile + "</span></div>"
+            + "<em>" + pkg.price + "</em></button>";
+        });
+        html += "</div><p>Выберите пакет → Telegram-бот. После подтверждения придёт <b>новый код</b> — войдите им заново.</p>";
+        return html;
+      }
+
+      var se = document.getElementById("svcExtend");
+      var st = document.getElementById("svcTariff");
+      var sd = document.getElementById("svcDevices");
+      var ss = document.getElementById("svcSupport");
+      if (se) se.addEventListener("click", function () { showPanel("Продлить доступ", packagesHtml("extend")); });
+      if (st) st.addEventListener("click", function () { showPanel("Смена тарифа", packagesHtml("tariff")); });
+      if (ss) ss.addEventListener("click", function () {
+        var tgl = String(cfg.telegram || "").trim();
+        var href = "";
+        if (tgl) {
+          href = /^https?:\/\//i.test(tgl) ? tgl : ("https://t.me/" + tgl.replace(/^@/, ""));
+        }
+        var body = "<p>Связь с администратором через Telegram.</p>";
+        if (href) {
+          body += '<div class="svc-links"><a class="button button--primary" target="_blank" rel="noopener" href="' + href + '">Открыть Telegram</a></div>';
+        } else {
+          body += '<p style="color:var(--text-faint);font-family:var(--mono);font-size:12px">Укажите telegram в cabinet-config.js?v=2</p>';
+        }
+        showPanel("Поддержка", body);
+      });
+      if (sd) sd.addEventListener("click", function () {
+        var html = "<p>Текущая сессия:</p><ul class='mac-list'>";
+        html += "<li><span>Сейчас</span><b class='mac-now'>" + (currentMac || "—") + "</b></li></ul>";
+        html += "<p style='margin-top:12px'>Полная история MAC на всех устройствах — через on-login скрипт на роутере (инструкция). В браузере хранится локальный список:</p>";
+        try {
+          var key = "hs_macs_" + userName;
+          var arr = JSON.parse(localStorage.getItem(key) || "[]");
+          if (currentMac && arr.indexOf(currentMac) === -1) {
+            arr.unshift(currentMac);
+            if (arr.length > 12) arr = arr.slice(0, 12);
+            localStorage.setItem(key, JSON.stringify(arr));
+          }
+          if (arr.length) {
+            html += "<ul class='mac-list'>";
+            arr.forEach(function (m) {
+              html += "<li><span>ранее</span><b>" + m + "</b></li>";
+            });
+            html += "</ul>";
+          }
+        } catch (e) {}
+        showPanel("Устройства", html);
+      });
+      if (panel) panel.addEventListener("click", function (e) {
+        var b = e.target.closest(".pkg-item");
+        if (!b) return;
+        var href = b.getAttribute("data-href") || b.getAttribute("data-wa");
+        if (href) window.open(href, "_blank", "noopener,noreferrer");
+        else alert("Укажите telegram (бот) в cabinet-config.js?v=2");
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROS · Hotspot Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hotspot-console.css">
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="mark">RB</div>
+    <h2>Доступ ограничен</h2>
+    <div class="sub">Введите пароль страницы</div>
+    <input type="password" id="lockInput" placeholder="Пароль" autocomplete="off" style="width:100%;margin-bottom:10px;">
+    <button class="btn-primary" id="lockBtn" style="width:100%;">Войти</button>
+    <div class="err-line" id="lockErr"></div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginStage" style="display:none;">
+  <div class="login-box">
+    <div class="mark">RB</div>
+    <h2>Hotspot Console</h2>
+    <div class="sub">User Manager + RADIUS</div>
+    <div class="notice" style="text-align:left;font-size:12px;">Логин и пароль панели (не от роутера)</div>
+    <div class="field" style="margin-bottom:10px;"><label>Логин</label><input type="text" id="fUser" placeholder="hotspot-manager"></div>
+    <div class="field" style="margin-bottom:10px;"><label>Пароль</label><input type="password" id="fPass" placeholder="••••••••"></div>
+    <div class="field" style="margin-bottom:10px;"><label>Адрес роутера (пусто = текущий)</label><input type="text" id="fAddr" placeholder=""></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);margin-bottom:14px;">
+      <input type="checkbox" id="fRemember"> Запомнить на этом устройстве
+    </label>
+    <button class="btn-primary" id="btnConnect" style="width:100%;">Войти</button>
+    <div class="err-line" id="connErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="mark">RB</div>
+      <div>
+        <h1>Hotspot Console</h1>
+        <div class="sub">RouterOS live</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Мониторинг</div>
+    <button class="nav-item active" data-view="sessions"><span class="icon">◉</span> Кто в сети</button>
+    <button class="nav-item" data-view="users"><span class="icon">◎</span> Клиенты</button>
+    <button class="nav-item" data-view="vouchers"><span class="icon">♯</span> Коды доступа</button>
+    <button class="nav-item" data-view="history"><span class="icon">◷</span> История</button>
+    <button class="nav-item" data-view="traffic"><span class="icon">▴</span> Трафик</button>
+
+    <div class="nav-section">Управление</div>
+    <button class="nav-item" data-view="tariffs"><span class="icon">▤</span> Тарифы</button>
+    <button class="nav-item" data-view="cashbox"><span class="icon">₴</span> Касса</button>
+
+    <div class="sidebar-foot">
+      <div class="row"><span>Роутер</span><b id="sideIdentity">—</b></div>
+      <div class="row"><span>RouterOS</span><b id="sideVersion">—</b></div>
+      <div class="row"><span>CPU</span><b id="sideCpu">—</b></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <nav class="mobile-tabs">
+      <button class="nav-item active" data-view="sessions"><span class="icon">◉</span> Кто в сети</button>
+      <button class="nav-item" data-view="users"><span class="icon">◎</span> Клиенты</button>
+      <button class="nav-item" data-view="vouchers"><span class="icon">♯</span> Коды доступа</button>
+      <button class="nav-item" data-view="history"><span class="icon">◷</span> История</button>
+      <button class="nav-item" data-view="traffic"><span class="icon">▴</span> Трафик</button>
+      <button class="nav-item" data-view="tariffs"><span class="icon">▤</span> Тарифы</button>
+      <button class="nav-item" data-view="cashbox"><span class="icon">₴</span> Касса</button>
+    </nav>
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="status-chip"><span class="led off" id="led"></span><span id="statusText">не подключено</span></div>
+        <div class="topbar-info">
+          <span id="cBoard">—</span> · uptime <b id="cUptime">—</b>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <select class="refresh-select" id="refreshRate">
+          <option value="0">без авто</option>
+          <option value="5000" selected>5 сек</option>
+          <option value="15000">15 сек</option>
+          <option value="30000">30 сек</option>
+        </select>
+        <button class="btn-ghost btn-sm" id="btnLockNow" title="Заблокировать">🔒</button>
+        <button class="btn-ghost btn-sm" id="btnDisconnect">Выйти</button>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats" style="grid-template-columns:repeat(5,1fr);">
+      <div class="stat-card"><div class="k">Сейчас в сети</div><div class="v accent" id="sActive">—</div></div>
+      <div class="stat-card"><div class="k">Клиентов</div><div class="v" id="sUsers">—</div></div>
+      <div class="stat-card"><div class="k">Кодов / не исп.</div><div class="v violet" id="sVouchers">—</div></div>
+      <div class="stat-card"><div class="k">Трафик сейчас</div><div class="v good" id="sTrafficNow">—</div></div>
+      <div class="stat-card"><div class="k">Трафик (сессии)</div><div class="v" id="sTrafficTotal">—</div></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- SESSIONS -->
+      <div class="panel view" id="view-sessions">
+        <div class="panel-head">
+          <div class="title">Кто в сети <span class="count" id="activeCount">0</span></div>
+          <div class="toolbar">
+            <input class="search-input" id="activeSearch" placeholder="поиск…">
+            <select class="filter-select" id="activeKindFilter">
+              <option value="">Все</option>
+              <option value="client">Клиенты</option>
+              <option value="voucher">Ваучеры</option>
+              <option value="unknown">Не из UM</option>
+            </select>
+            <select class="filter-select" id="activeConnFilter">
+              <option value="">Любое подключение</option>
+              <option value="Hotspot">Hotspot</option>
+              <option value="PPPoE">PPPoE</option>
+            </select>
+            <button class="btn-ghost btn-sm" id="btnRefreshActive">↻</button>
+          </div>
+        </div>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--glass);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Топ по скорости (live) · объём сессии</div>
+          <div id="trafficMiniChart"></div>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead><tr>
+              <th data-sort="user" class="sortable">Пользователь</th>
+              <th data-sort="kind" class="sortable">Учётная запись</th>
+              <th data-sort="conn" class="sortable">Подключение</th>
+              <th data-sort="address" class="sortable">IP</th>
+              <th>MAC</th>
+              <th data-sort="uptime" class="sortable">Сессия</th>
+              <th data-sort="bytes-in" class="sortable">Трафик ↓/↑</th>
+              <th data-sort="rate" class="sortable">Скорость</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="activeBody"><tr class="empty-row"><td colspan="9">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="panel view" id="view-users" style="display:none;">
+        <div class="panel-head">
+          <div class="title">Клиенты <span class="count" id="usersCount">0</span></div>
+          <div class="toolbar">
+            <input class="search-input" id="usersSearch" placeholder="поиск…">
+            <select class="filter-select" id="usersStatusFilter">
+              <option value="">Все статусы</option>
+              <option value="good">Активен / Онлайн</option>
+              <option value="neutral">Не активирован</option>
+              <option value="bad">Истёк / Отключён</option>
+            </select>
+            <select class="filter-select" id="usersTariffFilter"><option value="">Все тарифы</option></select>
+            <button class="btn-ghost btn-sm" id="btnRefreshUsers">↻</button>
+            <button class="btn-violet btn-sm" id="btnExportUsersCsv">CSV</button>
+            <button class="btn-ghost btn-sm" id="btnCleanupOrphans" title="Умная очистка: orphans, просроченные, старые неиспользованные">🧹 Мусор</button>
+            <button class="btn-primary btn-sm" id="btnToggleAdd">+ Клиент</button>
+          </div>
+        </div>
+        <div class="add-form" id="addForm">
+          <div class="field"><label>Имя</label><input type="text" id="nName" placeholder="ivan.petrov"></div>
+          <div class="field"><label>Пароль</label><input type="text" id="nPass" placeholder="пароль"></div>
+          <div class="field"><label>Тариф</label><select id="nProfile"></select></div>
+          <div class="field"><label>Заметка</label><input type="text" id="nComment" placeholder="необязательно"></div>
+          <button class="btn-primary btn-sm" id="btnAddUser">Создать</button>
+        </div>
+        <div class="bulk-bar" id="usersBulkBar">
+          <span id="usersBulkCount">Выбрано: 0</span>
+          <button class="btn-ghost btn-sm" id="usersBulkEnable">Включить</button>
+          <button class="btn-ghost btn-sm" id="usersBulkDisable">Отключить</button>
+          <button class="btn-violet btn-sm" id="usersBulkFunds">+ Средства</button>
+          <button class="btn-primary btn-sm" id="usersBulkExtend">Продлить</button>
+          <button class="btn-danger btn-sm" id="usersBulkDelete">Удалить</button>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead><tr>
+              <th style="width:28px;"><input type="checkbox" id="usersSelectAll"></th>
+              <th data-sort="name" class="sortable">Имя</th>
+              <th>Тип</th>
+              <th data-sort="profile" class="sortable">Тариф</th>
+              <th>Статус</th>
+              <th>IP</th>
+              <th>MAC</th>
+              <th data-sort="funds" class="sortable">Средства (₴)</th>
+              <th>Заметка</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="usersBody"><tr class="empty-row"><td colspan="10">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VOUCHERS -->
+      <div class="panel view" id="view-vouchers" style="display:none;">
+        <div class="panel-head">
+          <div class="title">Коды доступа <span class="count" id="voucherCount">0</span></div>
+          <div class="toolbar">
+            <input class="search-input" id="voucherSearch" placeholder="поиск по коду…">
+            <select class="filter-select" id="voucherStatusFilter">
+              <option value="">Все статусы</option>
+              <option value="neutral">Не использован</option>
+              <option value="good">Использован / онлайн</option>
+              <option value="bad">Истёк / отключён</option>
+            </select>
+            <select class="filter-select" id="voucherTariffFilter"><option value="">Все тарифы</option></select>
+            <button class="btn-ghost btn-sm" id="btnRefreshVouchers">↻</button>
+            <button class="btn-violet btn-sm" id="btnExportCsv">CSV</button>
+          </div>
+        </div>
+        <div class="gen-grid" id="genForm" style="display:flex;">
+          <div class="field"><label>Тариф</label><select id="vProfile"></select></div>
+          <div class="field"><label>Количество</label><input type="number" id="vQty" value="10" min="1" max="500"></div>
+          <div class="field"><label>Длина кода</label><input type="number" id="vLen" value="8" min="4" max="16"></div>
+          <div class="field" style="min-width:180px;"><label>URL Hotspot для QR</label><input type="text" id="vHotspotUrl" placeholder="http://10.0.0.1"></div>
+          <div class="field" style="min-width:140px;"><label>Название на талоне</label><input type="text" id="vBrand" placeholder="Wi‑Fi Hotspot"></div>
+          <div class="field"><label>Тип талона</label>
+            <select id="vTicketType">
+              <option value="guest" selected>Гость — код доступа</option>
+              <option value="user">Постоянный — логин и пароль</option>
+            </select>
+          </div>
+          <button class="btn-primary btn-sm" id="btnGenerate">Создать коды</button>
+        </div>
+        <div class="bulk-bar" id="vouchersBulkBar">
+          <span id="vouchersBulkCount">Выбрано: 0</span>
+          <button class="btn-primary btn-sm" id="vouchersBulkPrint">🖨 Печать</button>
+          <button class="btn-violet btn-sm" id="vouchersBulkCsv">CSV</button>
+          <button class="btn-danger btn-sm" id="vouchersBulkDelete">Удалить выбранные</button>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead><tr>
+              <th style="width:28px;"><input type="checkbox" id="vouchersSelectAll"></th>
+              <th data-sort="name" class="sortable">Код</th>
+              <th data-sort="profile" class="sortable">Тариф</th>
+              <th>Статус</th>
+              <th>Цена</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="vouchersBody"><tr class="empty-row"><td colspan="6">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TARIFFS -->
+      <div class="panel view" id="view-tariffs" style="display:none;">
+        <div class="panel-head">
+          <div class="title">Тарифы <span class="count" id="tariffCount">0</span></div>
+          <div class="toolbar">
+            <button class="btn-ghost btn-sm" id="btnRefreshTariffs">↻</button>
+            <button class="btn-primary btn-sm" id="btnToggleTariff">+ Тариф</button>
+          </div>
+        </div>
+        <div class="tariff-form" id="tariffForm">
+          <div class="field"><label>Название</label><input type="text" id="tName" placeholder="1 день 10 Мбит"></div>
+          <div class="field"><label>↓ Мбит/с</label><input type="number" id="tDown" placeholder="10"></div>
+          <div class="field"><label>↑ Мбит/с</label><input type="number" id="tUp" placeholder="5"></div>
+          <div class="field"><label>Срок</label>
+            <select id="tValidity">
+              <option value="1h">1 час</option>
+              <option value="1d" selected>1 день</option>
+              <option value="7d">7 дней</option>
+              <option value="30d">30 дней</option>
+              <option value="365d">365 дней</option>
+            </select>
+          </div>
+          <div class="field"><label>Лимит онлайн</label><input type="text" id="tUptime" placeholder="пусто = без"></div>
+          <div class="field"><label>Цена</label><input type="text" id="tPrice" placeholder="0"></div>
+          <button class="btn-primary btn-sm" id="btnAddTariff">Создать</button>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead><tr>
+              <th>Название</th><th>Скорость</th><th>Срок</th><th>Лимит вр.</th><th>Цена</th><th></th>
+            </tr></thead>
+            <tbody id="tariffsBody"><tr class="empty-row"><td colspan="6">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CASHBOX -->
+      <div class="panel view" id="view-cashbox" style="display:none;">
+        <div class="panel-head">
+          <div class="title">Касса</div>
+          <button class="btn-ghost btn-sm" id="btnRefreshCashbox">↻</button>
+        </div>
+        <div class="stats" style="padding:16px;grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card"><div class="k">Сегодня</div><div class="v accent" id="cashToday">—</div></div>
+          <div class="stat-card"><div class="k">Эта неделя</div><div class="v" id="cashWeek">—</div></div>
+          <div class="stat-card"><div class="k">Этот месяц</div><div class="v violet" id="cashMonth">—</div></div>
+        </div>
+        <div class="panel-body">
+          <div id="cashChart" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 16px 16px;"></div>
+          <table>
+            <thead><tr><th>Дата</th><th>Продано</th><th>Сумма</th></tr></thead>
+            <tbody id="cashBody"><tr class="empty-row"><td colspan="3">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- HISTORY (User Manager sessions) -->
+      <div class="panel view" id="view-history" style="display:none;">
+        <div class="panel-head">
+          <div class="title">История сессий <span class="count" id="historyCount">0</span></div>
+          <div class="toolbar">
+            <input class="search-input" id="historySearch" placeholder="поиск по имени…">
+            <button class="btn-ghost btn-sm" id="btnRefreshHistory">↻</button>
+          </div>
+        </div>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--glass);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Топ клиентов по трафику (User Manager)</div>
+          <div id="topClientsBars"></div>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead><tr>
+              <th style="width:36px;">#</th>
+              <th>Пользователь</th>
+              <th>Сессий</th>
+              <th>↓ Входящий</th>
+              <th>↑ Исходящий</th>
+              <th>Всего</th>
+            </tr></thead>
+            <tbody id="topClientsBody"><tr class="empty-row"><td colspan="6">Нет данных</td></tr></tbody>
+          </table>
+          <div style="padding:10px 0 4px;font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;">Все сессии</div>
+          <table>
+            <thead><tr>
+              <th>Пользователь</th>
+              <th>Начало</th>
+              <th>Конец</th>
+              <th>Длительность</th>
+              <th>Трафик ↓/↑</th>
+              <th>IP / MAC</th>
+            </tr></thead>
+            <tbody id="historyBody"><tr class="empty-row"><td colspan="6">Загрузка…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TRAFFIC (localStorage history) -->
+      <div class="panel view" id="view-traffic" style="display:none;">
+        <div class="panel-head">
+          <div class="title">Трафик (локальная история)</div>
+          <div class="toolbar">
+            <button class="btn-ghost btn-sm" id="btnClearTrafficHist">Очистить историю</button>
+            <button class="btn-ghost btn-sm" id="btnRefreshTraffic">↻</button>
+          </div>
+        </div>
+        <div class="stats" style="padding:16px;grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card"><div class="k">Сегодня</div><div class="v accent" id="trafToday">—</div></div>
+          <div class="stat-card"><div class="k">7 дней</div><div class="v" id="trafWeek">—</div></div>
+          <div class="stat-card"><div class="k">30 дней</div><div class="v violet" id="trafMonth">—</div></div>
+        </div>
+        <div class="panel-body">
+          <div id="trafficHistChart" style="display:flex;align-items:flex-end;gap:4px;height:140px;padding:0 16px 12px;"></div>
+          <table>
+            <thead><tr><th>Дата</th><th>↓ Входящий</th><th>↑ Исходящий</th><th>Всего</th><th>Сэмплов</th></tr></thead>
+            <tbody id="trafficHistBody"><tr class="empty-row"><td colspan="5">Данных пока нет — копится при открытой панели</td></tr></tbody>
+          </table>
+          <div class="notice" style="margin:12px 16px;">История трафика сохраняется в браузере (localStorage). Это приблизительные данные: панель суммирует текущие сессии каждые N секунд. Для точного учёта нужен accounting на роутере.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal" id="editUserModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="title">Изменить клиента</div>
+      <button class="btn-ghost btn-sm" id="btnCloseEditUser">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <div class="field"><label>Имя</label><input type="text" id="euName"></div>
+      <div class="field"><label>Новый пароль (пусто = не менять)</label><input type="text" id="euPass" placeholder="оставить"></div>
+      <div class="field"><label>Тариф</label><select id="euProfile"></select></div>
+      <div class="field"><label>Заметка</label><input type="text" id="euComment"></div>
+      <div class="err-line" id="euErr"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary btn-sm" id="btnSaveUser">Сохранить</button>
+      <button class="btn-ghost btn-sm" id="btnCancelEditUser">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILS MODAL -->
+<div class="modal" id="detailsModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="title">Информация о клиенте</div>
+      <button class="btn-ghost btn-sm" id="btnCloseDetails">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="details-grid" id="detailsGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- VOUCHER MODAL -->
+<div class="modal" id="voucherModal">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <div class="title">Талоны · печать / QR</div>
+      <button class="btn-ghost btn-sm" id="btnCloseModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice" style="margin-bottom:12px;">
+        <b>Гость</b> — на талоне только «код доступа» (вводится в одно поле).<br>
+        <b>Постоянный</b> — логин и пароль. QR подставляет данные на страницу входа Hotspot.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <label style="font-family:var(--mono);font-size:11px;color:var(--text-faint);">Макет:</label>
+        <select id="modalTicketType" class="filter-select">
+          <option value="guest">Гость — код доступа</option>
+          <option value="user">Постоянный — логин / пароль</option>
+        </select>
+      </div>
+      <div class="voucher-sheet" id="voucherSheet"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary btn-sm" id="btnPrint">🖨 Печать талонов</button>
+      <button class="btn-violet btn-sm" id="btnCsvFromModal">CSV этой партии</button>
+    </div>
+  </div>
+</div>
+
+<!-- SMART CLEANUP MODAL -->
+<div class="modal" id="cleanupModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="title">Умная очистка</div>
+      <button class="btn-ghost btn-sm" id="btnCloseCleanup">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice">Удаляет записи User Manager по выбранным правилам. Действие необратимо.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-dim);">
+        <input type="checkbox" id="cuOrphans" checked> Orphan user-profiles (user=unknown / нет пользователя)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-dim);">
+        <input type="checkbox" id="cuExpired" checked> Просроченные (state=expired)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-dim);">
+        <input type="checkbox" id="cuUnusedVouchers" checked> Неиспользованные ваучеры старше
+        <input type="number" id="cuDays" value="30" min="1" max="365" style="width:64px;padding:4px 6px;"> дней
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-dim);">
+        <input type="checkbox" id="cuNoProfile"> Пользователи без тарифа (нет user-profile)
+      </label>
+      <div id="cleanupPreview" style="font-family:var(--mono);font-size:12px;color:var(--text-faint);margin-top:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost btn-sm" id="btnCleanupPreview">Просмотр</button>
+      <button class="btn-danger btn-sm" id="btnCleanupRun">Очистить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ===== LOCK =====
+  const LOCK_HASH = "cf033470488c4a684803c0c818e4e079f64c4251212cc0823394efda5fb21c4d";
+  const LOCK_REMEMBER_MS = 3 * 60 * 60 * 1000;
+  const LOCK_KEY = "hc_unlock_until";
+  let lockFails = 0;
+
+  function unlockedRecently(){
+    try { return Number(localStorage.getItem(LOCK_KEY) || 0) > Date.now(); } catch(e){ return false; }
+  }
+  function rememberUnlock(){
+    try { localStorage.setItem(LOCK_KEY, String(Date.now() + LOCK_REMEMBER_MS)); } catch(e){}
+  }
+  if (unlockedRecently()) document.getElementById("lockScreen").style.display = "none";
+
+  async function sha256Hex(str){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+  async function tryUnlock(){
+    const val = document.getElementById("lockInput").value;
+    const btn = document.getElementById("lockBtn");
+    const err = document.getElementById("lockErr");
+    btn.disabled = true;
+    const hash = await sha256Hex(val);
+    if (hash === LOCK_HASH){
+      rememberUnlock();
+      document.getElementById("lockScreen").style.display = "none";
+      document.getElementById("loginStage").style.display = "flex";
+      setTimeout(() => { try { document.getElementById("fUser").focus(); } catch(e){} }, 50);
+    } else {
+      lockFails++;
+      err.style.display = "block";
+      err.textContent = "Неверный пароль";
+      document.getElementById("lockInput").value = "";
+      setTimeout(() => { btn.disabled = false; try { document.getElementById("lockInput").focus(); } catch(e){} }, Math.min(8000, lockFails * 1200));
+      return;
+    }
+    btn.disabled = false;
+  }
+  document.getElementById("lockBtn").onclick = tryUnlock;
+  document.getElementById("lockInput").onkeydown = e => { if (e.key === "Enter") tryUnlock(); };
+  document.getElementById("btnLockNow").onclick = () => {
+    try { localStorage.removeItem(LOCK_KEY); } catch(e){}
+    document.getElementById("lockScreen").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("loginStage").style.display = "none";
+    setTimeout(() => { try { document.getElementById("lockInput").focus(); } catch(e){} }, 50);
+  };
+  // Initial focus on page password when lock is visible
+  if (document.getElementById("lockScreen").style.display !== "none") {
+    setTimeout(() => { try { document.getElementById("lockInput").focus(); } catch(e){} }, 80);
+  }
+
+  // ===== HELPERS =====
+  const qs = id => document.getElementById(id);
+  function toast(msg, kind){
+    const el = document.createElement("div");
+    el.className = "toast " + (kind === "err" ? "err" : "ok");
+    el.textContent = msg;
+    qs("toasts").appendChild(el);
+    setTimeout(() => el.remove(), 4200);
+  }
+  function setStatus(on, text){
+    qs("led").className = "led " + (on ? "on" : "off");
+    qs("statusText").textContent = text;
+  }
+  function esc(s){
+    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function parseDuration(str){
+    if (!str) return 0;
+    str = String(str).trim();
+    if (str === "0" || str === "") return 0;
+    const re = /(\d+)(y|w|d|h|m|s)/g;
+    const mult = {y:31536000,w:604800,d:86400,h:3600,m:60,s:1};
+    let total = 0, m;
+    while ((m = re.exec(str)) !== null) total += parseInt(m[1],10) * mult[m[2]];
+    return total;
+  }
+  // Точный формат end-time из /user-manager/user-profile не подтверждён документацией —
+  // native Date() ненадёжно парсит "YYYY-MM-DD HH:MM:SS" (с пробелом вместо "T") в части
+  // браузеров (особенно Safari/мобильный Safari), там getTime() тихо даёт NaN.
+  // Пробуем как есть, а если не вышло — подменяем пробел на "T" и пробуем ещё раз.
+  function parseRouterDate(str){
+    if (!str) return null;
+    let d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+    d = new Date(String(str).trim().replace(" ", "T"));
+    if (!isNaN(d.getTime())) return d;
+    return null;
+  }
+  function formatUptime(str){
+    if (!str) return str;
+    const s = String(str).trim();
+    if (s === "0" || s === "") return s;
+    const parts = s.match(/\d+[a-zA-Zа-яА-Я]+/g);
+    return parts ? parts.join(" ") : s;
+  }
+  function fmtBytes(n){
+    n = Number(n);
+    if (!isFinite(n) || n <= 0) return "0 Б";
+    const u = ["Б","КБ","МБ","ГБ","ТБ"]; let i = 0;
+    while (n >= 1024 && i < u.length-1){ n /= 1024; i++; }
+    return n.toFixed(i===0?0:1) + " " + u[i];
+  }
+  function randomCode(len){
+    const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    const arr = new Uint32Array(len);
+    crypto.getRandomValues(arr);
+    let out = "";
+    for (let i=0;i<len;i++) out += alphabet[arr[i] % alphabet.length];
+    return out;
+  }
+
+  // ===== STATE =====
+  let baseUrl = "", user = "", pass = "", pollTimer = null;
+  let profilesCache = [];
+  let umUsers = [];
+  let umUserProfiles = [];
+  let activeCache = [];
+  let lastBatch = [];
+  const VOUCHER_TAG = "voucher:";
+  const selection = { users: new Set(), vouchers: new Set() };
+  const sortState = {};
+
+  // ===== API =====
+  async function api(path, opts = {}){
+    const method = opts.method || "GET";
+    const headers = {
+      "Authorization": "Basic " + btoa(user + ":" + pass),
+      "Cache-Control": "no-cache, no-store"
+    };
+    if (opts.body) headers["Content-Type"] = "application/json";
+    let res;
+    try {
+      res = await fetch(baseUrl.replace(/\/$/,"") + path, {
+        method, headers, cache: "no-store",
+        body: opts.body ? JSON.stringify(opts.body) : undefined
+      });
+    } catch(e){
+      throw new Error("Нет связи с роутером (CORS / сертификат)");
+    }
+    if (res.status === 401) throw new Error("Неверный логин или пароль");
+    if (!res.ok){
+      let detail = "";
+      try { const j = await res.json(); detail = j.message || j.detail || ""; } catch(e){}
+      throw new Error("Ошибка " + res.status + (detail ? ": " + detail : ""));
+    }
+    if (res.status === 204) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  // ===== CONNECT =====
+  const CONN_KEY = "hc_conn";
+  function saveConn(addr, u, p){ try { localStorage.setItem(CONN_KEY, JSON.stringify({addr,u,p})); } catch(e){} }
+  function clearConn(){ try { localStorage.removeItem(CONN_KEY); } catch(e){} }
+  function loadConn(){ try { const r = localStorage.getItem(CONN_KEY); return r ? JSON.parse(r) : null; } catch(e){ return null; } }
+
+  async function doConnect(){
+    let addr = qs("fAddr").value.trim();
+    if (!addr) addr = window.location.origin;
+    else if (!/^https?:\/\//i.test(addr)) addr = "https://" + addr;
+    baseUrl = addr + "/rest";
+    user = qs("fUser").value.trim();
+    pass = qs("fPass").value;
+
+    qs("btnConnect").disabled = true;
+    qs("btnConnect").textContent = "Подключение…";
+    qs("connErr").style.display = "none";
+
+    try {
+      const [resource, identity] = await Promise.all([api("/system/resource"), api("/system/identity")]);
+      const r = Array.isArray(resource) ? resource[0] : resource;
+      const idn = Array.isArray(identity) ? identity[0] : identity;
+
+      qs("sideIdentity").textContent = (idn && idn.name) || "—";
+      qs("cBoard").textContent = (r && r["board-name"]) || "—";
+      qs("sideVersion").textContent = (r && r.version) || "—";
+      qs("cUptime").textContent = formatUptime(r && r.uptime) || "—";
+      qs("sideCpu").textContent = (r && r["cpu-load"] !== undefined) ? r["cpu-load"] + "%" : "—";
+
+      if (qs("fRemember").checked) saveConn(qs("fAddr").value.trim(), user, pass);
+      else clearConn();
+
+      qs("loginStage").style.display = "none";
+      qs("app").style.display = "grid";
+      setStatus(true, addr.replace(/^https?:\/\//,""));
+
+      await refreshAll();
+      startPolling();
+    } catch(e){
+      qs("connErr").style.display = "block";
+      qs("connErr").textContent = e.message;
+    } finally {
+      qs("btnConnect").disabled = false;
+      qs("btnConnect").textContent = "Войти";
+    }
+  }
+  qs("btnConnect").onclick = doConnect;
+
+  (function autoConnect(){
+    const saved = loadConn();
+    if (!saved) {
+      if (unlockedRecently()) qs("loginStage").style.display = "flex";
+      return;
+    }
+    qs("fAddr").value = saved.addr || "";
+    qs("fUser").value = saved.u || "";
+    qs("fPass").value = saved.p || "";
+    qs("fRemember").checked = true;
+    if (unlockedRecently()) doConnect();
+    else qs("loginStage").style.display = "flex";
+  })();
+
+  qs("btnDisconnect").onclick = () => {
+    stopPolling();
+    clearConn();
+    qs("fPass").value = "";
+    qs("app").style.display = "none";
+    qs("loginStage").style.display = "flex";
+    setStatus(false, "не подключено");
+    toast("Вы вышли");
+  };
+
+  // ===== NAVIGATION =====
+  function switchView(name){
+    document.querySelectorAll(".nav-item").forEach(b => {
+      b.classList.toggle("active", b.dataset.view === name);
+    });
+    document.querySelectorAll(".view").forEach(v => v.style.display = "none");
+    const view = qs("view-" + name);
+    if (view) view.style.display = "flex";
+    // Close open inline forms when leaving a tab (keeps UI clean)
+    ["addForm","genForm","tariffForm"].forEach(id => {
+      const el = qs(id);
+      if (el && id !== "genForm") el.classList.remove("open");
+    });
+    if (name === "cashbox") renderCashbox();
+    if (name === "history") loadHistory();
+    if (name === "traffic") { sampleTraffic(); renderTrafficHist(); }
+  }
+  document.querySelectorAll(".nav-item").forEach(btn => {
+    btn.onclick = () => switchView(btn.dataset.view);
+  });
+
+  // ===== POLLING =====
+  function startPolling(){
+    stopPolling();
+    const ms = Number(qs("refreshRate").value);
+    if (ms > 0) pollTimer = setInterval(() => { loadActive(); loadStatsOnly(); }, ms);
+  }
+  function stopPolling(){ if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+  qs("refreshRate").onchange = startPolling;
+
+  async function loadStatsOnly(){
+    try {
+      const r0 = await api("/system/resource");
+      const r = Array.isArray(r0) ? r0[0] : r0;
+      qs("cUptime").textContent = formatUptime(r && r.uptime) || "—";
+      qs("sideCpu").textContent = (r && r["cpu-load"] !== undefined) ? r["cpu-load"] + "%" : "—";
+    } catch(e){}
+  }
+
+  async function refreshAll(){
+    await loadProfiles();
+    await Promise.all([loadActive(), loadAllUsers()]);
+  }
+
+  // ===== SORT =====
+  function wireSortableHeaders(tbodyId, renderFn){
+    const table = qs(tbodyId).closest("table");
+    if (!table) return;
+    table.querySelectorAll("thead th.sortable").forEach(th => {
+      th.onclick = () => {
+        const key = th.dataset.sort;
+        const cur = sortState[tbodyId] || {key:null, dir:1};
+        const dir = (cur.key === key) ? -cur.dir : 1;
+        sortState[tbodyId] = {key, dir};
+        table.querySelectorAll("th.sortable").forEach(h => h.classList.remove("sort-asc","sort-desc"));
+        th.classList.add(dir === 1 ? "sort-asc" : "sort-desc");
+        renderFn();
+      };
+    });
+  }
+  function applySort(list, tableId, valueFns){
+    const s = sortState[tableId];
+    if (!s || !s.key || !valueFns[s.key]) return list;
+    const vf = valueFns[s.key];
+    return [...list].sort((a,b) => {
+      const va = vf(a), vb = vf(b);
+      if (va < vb) return -s.dir;
+      if (va > vb) return s.dir;
+      return 0;
+    });
+  }
+
+  // ===== BULK =====
+  function updateBulkBar(kind){
+    const n = selection[kind].size;
+    qs(kind + "BulkCount").textContent = "Выбрано: " + n;
+    qs(kind + "BulkBar").classList.toggle("show", n > 0);
+  }
+  function wireRowCheckboxes(bodyId, kind){
+    qs(bodyId).querySelectorAll("[data-sel]").forEach(cb => {
+      const id = cb.dataset.sel;
+      cb.checked = selection[kind].has(id);
+      cb.onchange = () => {
+        if (cb.checked) selection[kind].add(id); else selection[kind].delete(id);
+        updateBulkBar(kind);
+      };
+    });
+  }
+  qs("usersSelectAll").onchange = e => {
+    const list = usersList();
+    if (e.target.checked) list.forEach(u => selection.users.add(u.userId));
+    else selection.users.clear();
+    renderUsers();
+  };
+  qs("vouchersSelectAll").onchange = e => {
+    const list = vouchersList();
+    if (e.target.checked) list.forEach(u => selection.vouchers.add(u.userId));
+    else selection.vouchers.clear();
+    renderVouchers();
+  };
+
+  async function bulkDelete(kind){
+    const ids = [...selection[kind]];
+    if (!ids.length) return;
+    if (!confirm(`Удалить выбранные (${ids.length})?`)) return;
+    let ok = 0, fail = 0;
+    for (const id of ids){
+      try {
+        const u = umUsers.find(x => x[".id"] === id);
+        await removeProfileLinksForUser(id, u ? u.name : "");
+        await api("/user-manager/user/" + encodeURIComponent(id), {method:"DELETE"});
+        ok++;
+      } catch(e){ fail++; }
+    }
+    toast(`Удалено: ${ok}${fail ? ", ошибок: "+fail : ""}`, fail ? "err" : "ok");
+    selection[kind].clear();
+    loadAllUsers();
+  }
+  qs("usersBulkDelete").onclick = () => bulkDelete("users");
+  qs("vouchersBulkDelete").onclick = () => bulkDelete("vouchers");
+
+  function selectedVouchersPayload(){
+    const ids = [...selection.vouchers];
+    if (!ids.length) return [];
+    const list = vouchersList();
+    return ids.map(id => {
+      const u = list.find(x => x.userId === id) || enrichUser(umUsers.find(x => x[".id"] === id) || {});
+      if (!u || !u.name) return null;
+      return {
+        code: u.name,
+        pass: u.name,
+        profile: u.profile || "",
+        price: u.price || ""
+      };
+    }).filter(Boolean);
+  }
+  qs("vouchersBulkPrint").onclick = () => {
+    const list = selectedVouchersPayload();
+    if (!list.length){ toast("Отметьте ваучеры галочками", "err"); return; }
+    lastBatch = list;
+    openVoucherModal(list);
+    toast("К печати: " + list.length);
+  };
+  qs("vouchersBulkCsv").onclick = () => {
+    const list = selectedVouchersPayload();
+    if (!list.length){ toast("Отметьте ваучеры галочками", "err"); return; }
+    downloadCsv(toCsv(list), "vouchers-selected-"+Date.now()+".csv");
+    toast("CSV: " + list.length);
+  };
+
+  async function bulkToggle(kind, disable){
+    const ids = [...selection[kind]];
+    if (!ids.length) return;
+    let ok = 0;
+    for (const id of ids){
+      try {
+        await api("/user-manager/user/" + encodeURIComponent(id), {
+          method: "PATCH", body: { disabled: disable ? "true" : "false" }
+        });
+        ok++;
+      } catch(e){}
+    }
+    toast((disable ? "Отключено: " : "Включено: ") + ok);
+    selection[kind].clear();
+    loadAllUsers();
+  }
+  qs("usersBulkEnable").onclick = () => bulkToggle("users", false);
+  qs("usersBulkDisable").onclick = () => bulkToggle("users", true);
+
+  // Bulk funds top-up
+  qs("usersBulkFunds").onclick = async () => {
+    const ids = [...selection.users];
+    if (!ids.length) return;
+    const val = prompt("Сумма пополнения (₴) для каждого выбранного:", "50");
+    if (val === null) return;
+    const amount = parseFloat(val);
+    if (isNaN(amount) || amount === 0){ toast("Введите число", "err"); return; }
+    let ok = 0;
+    for (const id of ids){
+      try {
+        const u = umUsers.find(x => x[".id"] === id);
+        if (!u) continue;
+        const m = String(u.comment||"").match(/funds=([^|]+)/);
+        const cur = m ? parseFloat(m[1])||0 : 0;
+        const next = cur + amount;
+        const base = String(u.comment||"").replace(/funds=[^|]+\|?/,"").trim();
+        const comment = (base ? base+"|" : "") + "funds=" + next;
+        await api("/user-manager/user/" + encodeURIComponent(id), {method:"PATCH", body:{comment}});
+        ok++;
+      } catch(e){}
+    }
+    toast("Пополнено: " + ok + " × " + amount + " ₴");
+    selection.users.clear();
+    loadAllUsers();
+  };
+
+  // Bulk extend tariff (re-assign same profile to refresh validity)
+  qs("usersBulkExtend").onclick = async () => {
+    const ids = [...selection.users];
+    if (!ids.length) return;
+    const days = prompt("Продлить на сколько дней? (перепривязка тарифа)", "30");
+    if (days === null) return;
+    const d = parseInt(days, 10);
+    if (!d || d < 1){ toast("Введите число дней", "err"); return; }
+    let ok = 0;
+    for (const id of ids){
+      try {
+        const u = umUsers.find(x => x[".id"] === id);
+        if (!u) continue;
+        const profile = profileNameFor(u);
+        if (!profile) continue;
+        await assignProfileToUser(id, u.name, profile);
+        const secs = timeoutSecsForProfile(profile);
+        if (secs) await setUserSessionTimeout(u.name, secs);
+        const note = String(u.comment||"").replace(/extended=[^|]+\|?/,"").trim();
+        const comment = (note ? note+"|" : "") + "extended=" + new Date().toISOString().slice(0,10) + "+" + d + "d";
+        await api("/user-manager/user/" + encodeURIComponent(id), {method:"PATCH", body:{comment}}).catch(()=>{});
+        ok++;
+      } catch(e){}
+    }
+    toast("Продлено тарифов: " + ok);
+    selection.users.clear();
+    loadAllUsers();
+  };
+
+  // ===== ACTIVE SESSIONS (Hotspot + PPPoE) =====
+  let pppCache = [];
+  async function loadActive(){
+    try {
+      const [hs, ppp] = await Promise.all([
+        api("/ip/hotspot/active").catch(() => []),
+        api("/ppp/active").catch(() => [])
+      ]);
+      activeCache = (hs || []).map(s => ({...s, _type: "Hotspot", _kickPath: "/ip/hotspot/active/"}));
+      pppCache = (ppp || []).map(s => ({
+        ...s,
+        user: s.name || s.user,
+        address: s.address || s["caller-id"] || "",
+        "mac-address": s["caller-id"] || "",
+        "bytes-in": s["bytes-in"] || 0,
+        "bytes-out": s["bytes-out"] || 0,
+        uptime: s.uptime || "",
+        _type: "PPPoE",
+        _kickPath: "/ppp/active/"
+      }));
+      renderActive();
+      if (umUsers.length) renderUsers();
+    } catch(e){ toast("Сессии: " + e.message, "err"); }
+  }
+
+  function allActiveSessions(){ return [...activeCache, ...pppCache]; }
+
+  function sessionAccountKind(username){
+    if (!username) return { kind: "unknown", label: "не из UM", cls: "neutral" };
+    const u = (umUsers || []).find(x => x.name === username);
+    if (!u) return { kind: "unknown", label: "не из UM", cls: "neutral" };
+    if (String(u.comment||"").startsWith(VOUCHER_TAG))
+      return { kind: "voucher", label: "ваучер", cls: "violet" };
+    return { kind: "client", label: "клиент", cls: "good" };
+  }
+
+  function renderActive(){
+    let list = allActiveSessions().map(s => {
+      const acc = sessionAccountKind(s.user);
+      return { ...s, _kind: acc.kind, _kindLabel: acc.label, _kindCls: acc.cls };
+    });
+    const q = (qs("activeSearch").value || "").trim().toLowerCase();
+    if (q) list = list.filter(s =>
+      (s.user||"").toLowerCase().includes(q) ||
+      (s.address||"").toLowerCase().includes(q) ||
+      (s["mac-address"]||"").toLowerCase().includes(q) ||
+      (s._type||"").toLowerCase().includes(q) ||
+      (s._kindLabel||"").toLowerCase().includes(q)
+    );
+    const kindF = qs("activeKindFilter") ? qs("activeKindFilter").value : "";
+    if (kindF) list = list.filter(s => s._kind === kindF);
+    const connF = qs("activeConnFilter") ? qs("activeConnFilter").value : "";
+    if (connF) list = list.filter(s => s._type === connF);
+
+    const rates = computeSessionRates(allActiveSessions());
+    list = list.map(s => {
+      const r = rates[s[".id"]] || { down: 0, up: 0 };
+      return { ...s, _rateDown: r.down || 0, _rateUp: r.up || 0, _rateSum: (r.down || 0) + (r.up || 0) };
+    });
+
+    list = applySort(list, "activeBody", {
+      user: s => (s.user||"").toLowerCase(),
+      kind: s => s._kind || "",
+      conn: s => s._type || "",
+      address: s => s.address || "",
+      uptime: s => parseDuration(s.uptime),
+      "bytes-in": s => Number(s["bytes-in"]) || 0,
+      rate: s => s._rateSum || 0
+    });
+    qs("activeCount").textContent = list.length;
+    qs("sActive").textContent = allActiveSessions().length;
+
+    let totalIn = 0, totalOut = 0;
+    allActiveSessions().forEach(s => {
+      totalIn += Number(s["bytes-in"]) || 0;
+      totalOut += Number(s["bytes-out"]) || 0;
+    });
+    qs("sTrafficNow").textContent = fmtBytes(totalIn + totalOut);
+    qs("sTrafficTotal").textContent = fmtBytes(totalIn) + " ↓ / " + fmtBytes(totalOut) + " ↑";
+
+    const chartEl = qs("trafficMiniChart");
+    if (chartEl){
+      const top = [...list]
+        .map(s => ({
+          name: s.user || "?",
+          total: (Number(s["bytes-in"])||0)+(Number(s["bytes-out"])||0),
+          rate: s._rateSum || 0,
+          kind: s._kindLabel || ""
+        }))
+        .sort((a,b) => (b.rate - a.rate) || (b.total - a.total)).slice(0, 8);
+      const maxR = Math.max(1, ...top.map(t => t.rate || t.total));
+      chartEl.innerHTML = top.length ? top.map(t => {
+        const score = t.rate > 0 ? t.rate : t.total;
+        const pct = Math.round((score / maxR) * 100);
+        const right = t.rate > 0 ? fmtRate(t.rate) : fmtBytes(t.total);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-family:var(--mono);font-size:11px;">
+          <div style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim);">${esc(t.name)}</div>
+          <div style="width:52px;color:var(--text-faint);font-size:10px;">${esc(t.kind)}</div>
+          <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--violet));border-radius:4px;"></div>
+          </div>
+          <div style="width:78px;text-align:right;color:var(--accent);">${right}</div>
+        </div>`;
+      }).join("") : '<div style="color:var(--text-faint);font-size:12px;padding:8px 0;">Нет данных · скорость после 1–2 обновлений</div>';
+    }
+
+    const body = qs("activeBody");
+    if (!list.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="9">Нет активных сессий</td></tr>';
+      return;
+    }
+
+    body.innerHTML = list.map(s => {
+      const connCls = s._type === "PPPoE" ? "violet" : "good";
+      const mac = s["mac-address"] || "";
+      const rateStr = fmtRate(s._rateDown) + " / " + fmtRate(s._rateUp);
+      return `
+      <tr>
+        <td class="name">${esc(s.user || "—")}</td>
+        <td><span class="pill ${s._kindCls}"><span class="dot"></span>${esc(s._kindLabel)}</span></td>
+        <td><span class="pill ${connCls}"><span class="dot"></span>${esc(s._type)}</span></td>
+        <td class="truncate-sm" title="${esc(s.address || "")}">${esc(s.address || "—")}</td>
+        <td class="truncate-sm" title="${esc(mac)}">${esc(mac || "—")}</td>
+        <td>${esc(formatUptime(s.uptime) || "—")}</td>
+        <td>${fmtBytes(s["bytes-in"])} / ${fmtBytes(s["bytes-out"])}</td>
+        <td style="color:var(--accent);">${rateStr}</td>
+        <td class="row-actions">
+          <button class="btn-danger btn-sm ibtn" data-kick="${esc(s[".id"])}" data-path="${esc(s._kickPath)}" title="Отключить">⏻</button>
+          <button class="btn-ghost btn-sm ibtn" data-ban-mac="${esc(mac)}" data-ban-ip="${esc(s.address||"")}" data-ban-user="${esc(s.user||"")}" data-kick="${esc(s[".id"])}" data-path="${esc(s._kickPath)}" title="Бан MAC / IP на 24ч">🚫</button>
+        </td>
+      </tr>`;
+    }).join("");
+    body.querySelectorAll("[data-kick]").forEach(btn => {
+      if (btn.hasAttribute("data-ban-mac")) return;
+      btn.onclick = () => kickSession(btn.dataset.kick, btn.dataset.path, btn);
+    });
+    body.querySelectorAll("[data-ban-mac]").forEach(btn => {
+      btn.onclick = () => banClient(btn);
+    });
+  }
+
+  // ===== LIVE BITRATE =====
+  let prevRateSample = { t: 0, map: {} };
+  function fmtRate(bps){
+    if (!bps || bps < 0) return "0";
+    if (bps < 1000) return Math.round(bps) + " B/s";
+    if (bps < 1e6) return (bps/1000).toFixed(0) + " Kb/s";
+    return (bps/1e6).toFixed(1) + " Mb/s";
+  }
+  function computeSessionRates(list){
+    const now = Date.now();
+    const map = {};
+    list.forEach(s => {
+      map[s[".id"]] = {
+        in: Number(s["bytes-in"]) || 0,
+        out: Number(s["bytes-out"]) || 0
+      };
+    });
+    const rates = {};
+    const dt = prevRateSample.t ? (now - prevRateSample.t) / 1000 : 0;
+    list.forEach(s => {
+      const id = s[".id"];
+      const cur = map[id];
+      const prev = prevRateSample.map[id];
+      if (dt > 0.5 && prev && cur) {
+        rates[id] = {
+          down: Math.max(0, (cur.in - prev.in) / dt),
+          up: Math.max(0, (cur.out - prev.out) / dt)
+        };
+      } else {
+        rates[id] = { down: 0, up: 0 };
+      }
+    });
+    // update sample only if enough time passed (avoid zero dt on rapid re-render)
+    if (!prevRateSample.t || dt >= 2) {
+      prevRateSample = { t: now, map };
+    }
+    return rates;
+  }
+  qs("activeSearch").oninput = renderActive;
+  if (qs("activeKindFilter")) qs("activeKindFilter").onchange = renderActive;
+  if (qs("activeConnFilter")) qs("activeConnFilter").onchange = renderActive;
+  wireSortableHeaders("activeBody", renderActive);
+  qs("btnRefreshActive").onclick = loadActive;
+
+  async function kickSession(id, path, btn){
+    if (!path) path = "/ip/hotspot/active/";
+    if (btn) btn.disabled = true;
+    try {
+      await api(path + encodeURIComponent(id), {method:"DELETE"});
+      toast("Сессия отключена");
+      loadActive();
+    } catch(e){ toast(e.message, "err"); if (btn) btn.disabled = false; }
+  }
+
+  // Ban: kick + hotspot ip-binding blocked + address-list timeout 1d
+  async function banClient(btn){
+    const mac = (btn.dataset.banMac || "").trim();
+    const ip = (btn.dataset.banIp || "").trim();
+    const user = btn.dataset.banUser || "";
+    if (!mac && !ip){ toast("Нет MAC/IP для бана", "err"); return; }
+    if (!confirm("Забанить " + (user || mac || ip) + " на 24 часа?\n(kick + block)")) return;
+    btn.disabled = true;
+    const notes = [];
+    try {
+      // 1) kick session
+      if (btn.dataset.kick) {
+        try {
+          await api((btn.dataset.path || "/ip/hotspot/active/") + encodeURIComponent(btn.dataset.kick), { method: "DELETE" });
+          notes.push("kick");
+        } catch(e){}
+      }
+      // 2) Hotspot IP binding by MAC (hard block until removed)
+      if (mac) {
+        try {
+          await api("/ip/hotspot/ip-binding", {
+            method: "PUT",
+            body: { "mac-address": mac, type: "blocked", comment: "hc-ban " + user + " " + new Date().toISOString().slice(0,16) }
+          });
+          notes.push("binding");
+        } catch(e){ notes.push("binding: " + e.message); }
+      }
+      // 3) Address-list with 1d timeout (by IP preferred)
+      const addr = ip || mac;
+      if (addr) {
+        try {
+          await api("/ip/firewall/address-list", {
+            method: "PUT",
+            body: { list: "hotspot_banned", address: addr, timeout: "1d", comment: "hc-ban " + user }
+          });
+          notes.push("list 1d");
+        } catch(e){ notes.push("list: " + e.message); }
+      }
+      toast("Бан: " + notes.join(", "));
+      loadActive();
+    } catch(e){
+      toast("Бан: " + e.message, "err");
+      btn.disabled = false;
+    }
+  }
+
+  // ===== USERS / VOUCHERS =====
+  async function loadAllUsers(){
+    try {
+      const [users, links, sessions] = await Promise.all([
+        api("/user-manager/user") || [],
+        api("/user-manager/user-profile") || [],
+        api("/user-manager/session").catch(() => [])
+      ]);
+      umUsers = users;
+      umUserProfiles = links;
+      if (Array.isArray(sessions)) umSessions = sessions;
+      renderUsers();
+      renderVouchers();
+      renderCashbox();
+    } catch(e){ toast("Пользователи: " + e.message, "err"); }
+  }
+
+  function findLinksFor(u){
+    const id = u && u[".id"];
+    const name = u && u.name;
+    return (umUserProfiles || []).filter(p =>
+      p.user === id || p.user === name ||
+      (name && String(p.user).toLowerCase() === String(name).toLowerCase())
+    );
+  }
+  function findLinkFor(u){
+    const links = findLinksFor(u);
+    return links[0] || null;
+  }
+  function profileNameFor(u){
+    const link = findLinkFor(u);
+    return link ? (link.profile || "") : "";
+  }
+  function stateFor(u){
+    const link = findLinkFor(u);
+    return link ? (link.state || "") : "";
+  }
+
+  function enrichUser(u){
+    const disabled = (u.disabled === "true" || u.disabled === true);
+    const profile = profileNameFor(u);
+    const state = stateFor(u);
+    const link = findLinkFor(u);
+    const isVoucher = String(u.comment||"").startsWith(VOUCHER_TAG);
+
+    // Find live session in Hotspot or PPPoE
+    const liveHs = activeCache.find(s => s.user === u.name);
+    const livePpp = pppCache.find(s => s.user === u.name);
+    const live = liveHs || livePpp;
+    const online = !!live;
+    const connType = liveHs ? "Hotspot" : (livePpp ? "PPPoE" : "—");
+
+    // Was this account ever used (had UM session or is online now)?
+    const hadSession = online || (Array.isArray(umSessions) && umSessions.some(s => {
+      const n = s.user || s.name || "";
+      return n && n === u.name;
+    }));
+    // Also check monitor totals if available
+    const mon = (window._umTrafficTotals && window._umTrafficTotals[u.name]) || null;
+    const hadTraffic = mon && ((mon.down||0) + (mon.up||0) > 0);
+    const used = hadSession || hadTraffic;
+
+    // Status logic:
+    // - vouchers: unused | used | online | expired | disabled
+    // - clients:  same idea, labels slightly different
+    let cls = "neutral", label = isVoucher ? "не использован" : "не активирован";
+    if (disabled) {
+      cls = "bad"; label = "отключён";
+    } else if (state === "expired") {
+      cls = "bad"; label = "истёк";
+    } else if (online) {
+      cls = "good"; label = "онлайн";
+    } else if (used) {
+      cls = "good"; label = isVoucher ? "использован" : "активен";
+    } else if (state === "not-active" || state === "" || !profile) {
+      cls = "neutral"; label = isVoucher ? "не использован" : "не активирован";
+    } else {
+      // profile linked but never logged in
+      cls = "neutral";
+      label = isVoucher ? "не использован" : "ожидает входа";
+    }
+
+    // Remaining validity from user-profile end-time if available
+    let remaining = "";
+    if (link && link["end-time"] && link["end-time"] !== "unlimited") {
+      const end = parseRouterDate(link["end-time"]);
+      if (end) {
+        const now = new Date();
+        const diff = end - now;
+        if (diff > 0) {
+          const days = Math.floor(diff / 86400000);
+          const hours = Math.floor((diff % 86400000) / 3600000);
+          remaining = days > 0 ? days + "д " + hours + "ч" : hours + "ч";
+        } else if (state === "expired") remaining = "0";
+      }
+    }
+
+    const tariff = profilesCache.find(p => p.name === profile);
+    const priceMatch = String(u.comment||"").match(/price=([^|]+)/);
+    const fundsMatch = String(u.comment||"").match(/funds=([^|]+)/);
+
+    return {
+      userId: u[".id"], name: u.name, disabled, profile, state, cls, label,
+      price: priceMatch ? priceMatch[1] : (tariff ? tariff.price : ""),
+      funds: fundsMatch ? fundsMatch[1] : "0",
+      note: String(u.comment||"").replace(/voucher:[^|]*\|?/g,"").replace(/price=[^|]+\|?/g,"").replace(/funds=[^|]+\|?/g,"").trim(),
+      ip: live ? (live.address||"") : "",
+      mac: live ? (live["mac-address"]||"") : "",
+      online, sessionId: live ? live[".id"] : null,
+      sessionPath: live ? live._kickPath : null,
+      connType, remaining, used,
+      trafficIn: live ? (Number(live["bytes-in"])||0) : 0,
+      trafficOut: live ? (Number(live["bytes-out"])||0) : 0,
+      isVoucher,
+      raw: u
+    };
+  }
+  function usersList(){ return umUsers.filter(u => !String(u.comment||"").startsWith(VOUCHER_TAG)).map(enrichUser); }
+  function vouchersList(){ return umUsers.filter(u => String(u.comment||"").startsWith(VOUCHER_TAG)).map(enrichUser); }
+
+  function populateTariffFilters(){
+    const opts = '<option value="">Все тарифы</option>' + profilesCache.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+    qs("usersTariffFilter").innerHTML = opts;
+    qs("voucherTariffFilter").innerHTML = opts;
+  }
+
+  function renderUsers(){
+    let list = usersList();
+    const q = (qs("usersSearch").value||"").trim().toLowerCase();
+    if (q) list = list.filter(u => u.name.toLowerCase().includes(q));
+    const statusF = qs("usersStatusFilter").value;
+    if (statusF) list = list.filter(u => u.cls === statusF);
+    const tariffF = qs("usersTariffFilter").value;
+    if (tariffF) list = list.filter(u => u.profile === tariffF);
+    list = applySort(list, "usersBody", {
+      name: u => u.name.toLowerCase(),
+      profile: u => (u.profile||"").toLowerCase(),
+      funds: u => parseFloat(u.funds)||0
+    });
+
+    qs("usersCount").textContent = list.length;
+    qs("sUsers").textContent = usersList().length;
+
+    const body = qs("usersBody");
+    if (!list.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="10">Клиенты не найдены</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(u => {
+      const typeCls = u.connType === "PPPoE" ? "violet" : (u.connType === "Hotspot" ? "good" : "neutral");
+      return `
+      <tr>
+        <td><input type="checkbox" data-sel="${esc(u.userId)}"></td>
+        <td class="name">${esc(u.name)}</td>
+        <td><span class="pill ${typeCls}"><span class="dot"></span>${esc(u.connType)}</span></td>
+        <td>${esc(u.profile || "—")}${u.remaining ? ' <span style="color:var(--text-faint);font-size:10px;">('+esc(u.remaining)+')</span>' : ""}</td>
+        <td><span class="pill ${u.cls}"><span class="dot"></span>${u.label}</span></td>
+        <td class="truncate-sm" title="${esc(u.ip || "")}">${esc(u.ip || "—")}</td>
+        <td class="truncate-sm" title="${esc(u.mac || "")}">${esc(u.mac || "—")}</td>
+        <td>${esc(u.funds || "0")} ₴</td>
+        <td class="truncate" title="${esc(u.note || "")}">${esc(u.note || "—")}</td>
+        <td class="row-actions">
+          ${u.online ? `<button class="btn-danger btn-sm ibtn" data-kick-user="${esc(u.sessionId)}" data-path="${esc(u.sessionPath||'')}" title="Kick">⏻</button>` : ""}
+          <button class="btn-ghost btn-sm ibtn" data-details="${esc(u.userId)}" title="Подробнее">ℹ</button>
+          <button class="btn-ghost btn-sm ibtn" data-edit="${esc(u.userId)}" title="Изменить">✎</button>
+          <button class="btn-ghost btn-sm ibtn" data-toggle="${esc(u.userId)}" data-state="${u.disabled}" title="${u.disabled?'Включить':'Отключить'}">${u.disabled?"▶":"⏸"}</button>
+          <button class="btn-danger btn-sm ibtn" data-del="${esc(u.userId)}" title="Удалить">🗑</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    body.querySelectorAll("[data-kick-user]").forEach(b => b.onclick = () => kickSession(b.dataset.kickUser, b.dataset.path, b));
+    body.querySelectorAll("[data-details]").forEach(b => b.onclick = () => openDetails(b.dataset.details));
+    body.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => openEditUser(b.dataset.edit));
+    body.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => toggleUser(b.dataset.toggle, b.dataset.state==="true", b));
+    body.querySelectorAll("[data-del]").forEach(b => b.onclick = () => deleteUser(b.dataset.del, b));
+    wireRowCheckboxes("usersBody", "users");
+    updateBulkBar("users");
+  }
+  qs("usersSearch").oninput = renderUsers;
+  qs("usersStatusFilter").onchange = renderUsers;
+  qs("usersTariffFilter").onchange = renderUsers;
+  wireSortableHeaders("usersBody", renderUsers);
+  qs("btnRefreshUsers").onclick = loadAllUsers;
+
+  function openDetails(id){
+    const u = enrichUser(umUsers.find(x => x[".id"] === id) || {});
+    qs("detailsGrid").innerHTML = `
+      <div class="details-item"><div class="label">Имя</div><div class="value">${esc(u.name)}</div></div>
+      <div class="details-item"><div class="label">Статус</div><div class="value">${esc(u.label)}</div></div>
+      <div class="details-item"><div class="label">Тип подключения</div><div class="value">${esc(u.connType)}</div></div>
+      <div class="details-item"><div class="label">Тариф</div><div class="value">${esc(u.profile||"—")}</div></div>
+      <div class="details-item"><div class="label">Остаток срока</div><div class="value">${esc(u.remaining||"—")}</div></div>
+      <div class="details-item"><div class="label">Онлайн</div><div class="value">${u.online?"Да":"Нет"}</div></div>
+      <div class="details-item"><div class="label">IP</div><div class="value">${esc(u.ip||"—")}</div></div>
+      <div class="details-item"><div class="label">MAC</div><div class="value">${esc(u.mac||"—")}</div></div>
+      <div class="details-item"><div class="label">Трафик сессии</div><div class="value">${fmtBytes(u.trafficIn)} ↓ / ${fmtBytes(u.trafficOut)} ↑</div></div>
+      <div class="details-item"><div class="label">Средства</div><div class="value">${esc(u.funds||"0")} ₴</div></div>
+      <div class="details-item"><div class="label">Цена тарифа</div><div class="value">${esc(u.price||"—")} ₴</div></div>
+      <div class="details-item"><div class="label">Заметка</div><div class="value">${esc(u.note||"—")}</div></div>
+      <div class="details-item"><div class="label">Disabled</div><div class="value">${u.disabled?"yes":"no"}</div></div>
+      <div class="details-item"><div class="label">State (UM)</div><div class="value">${esc(u.state||"—")}</div></div>
+    `;
+    qs("detailsModal").classList.add("open");
+  }
+  qs("btnCloseDetails").onclick = () => qs("detailsModal").classList.remove("open");
+
+  let editUserId = null;
+  function openEditUser(id){
+    const u = enrichUser(umUsers.find(x => x[".id"] === id) || {});
+    editUserId = id;
+    qs("euName").value = u.name;
+    qs("euPass").value = "";
+    qs("euComment").value = u.note;
+    qs("euErr").style.display = "none";
+    qs("euProfile").innerHTML = profilesCache.map(p =>
+      `<option value="${esc(p.name)}"${p.name===u.profile?" selected":""}>${esc(p.name)}</option>`
+    ).join("");
+    qs("editUserModal").classList.add("open");
+  }
+  qs("btnCloseEditUser").onclick = qs("btnCancelEditUser").onclick = () => qs("editUserModal").classList.remove("open");
+  qs("btnSaveUser").onclick = async () => {
+    const name = qs("euName").value.trim();
+    const newPass = qs("euPass").value;
+    const profile = qs("euProfile").value;
+    const comment = qs("euComment").value;
+    if (!name){ qs("euErr").style.display="block"; qs("euErr").textContent="Имя пустое"; return; }
+    qs("btnSaveUser").disabled = true;
+    qs("euErr").style.display = "none";
+    try {
+      const payload = { name, comment };
+      if (newPass) payload.password = newPass;
+      await api("/user-manager/user/" + encodeURIComponent(editUserId), {method:"PATCH", body:payload});
+      if (profile) {
+        await assignProfileToUser(editUserId, name, profile);
+        const secs = timeoutSecsForProfile(profile);
+        if (secs) await setUserSessionTimeout(name, secs);
+      }
+      toast("Клиент обновлён" + (profile ? " · тариф: " + profile : ""));
+      qs("editUserModal").classList.remove("open");
+      await loadAllUsers();
+    } catch(e){ qs("euErr").style.display="block"; qs("euErr").textContent=e.message; }
+    finally { qs("btnSaveUser").disabled = false; }
+  };
+
+  async function toggleUser(id, isDisabled, btn){
+    btn.disabled = true;
+    try {
+      await api("/user-manager/user/" + encodeURIComponent(id), {
+        method:"PATCH", body:{disabled: isDisabled ? "false" : "true"}
+      });
+      toast(isDisabled ? "Включён" : "Отключён");
+      loadAllUsers();
+    } catch(e){ toast(e.message,"err"); btn.disabled=false; }
+  }
+  async function removeProfileLinksForUser(id, name){
+    try { umUserProfiles = await api("/user-manager/user-profile") || []; } catch(e){}
+    const links = findLinksFor({ ".id": id, name: name });
+    for (const link of links) {
+      try {
+        await api("/user-manager/user-profile/" + encodeURIComponent(link[".id"]), { method: "DELETE" });
+      } catch(e){}
+    }
+  }
+
+  async function deleteUser(id, btn){
+    if (!confirm("Удалить без восстановления?")) return;
+    if (btn) btn.disabled = true;
+    try {
+      const u = umUsers.find(x => x[".id"] === id);
+      const name = u ? u.name : "";
+      // First remove user-profile links so UM doesn't leave "unknown" orphans
+      await removeProfileLinksForUser(id, name);
+      await api("/user-manager/user/" + encodeURIComponent(id), {method:"DELETE"});
+      toast("Удалено");
+      loadAllUsers();
+    } catch(e){ toast(e.message,"err"); if (btn) btn.disabled=false; }
+  }
+
+  // ===== SMART CLEANUP =====
+  function voucherCreatedTs(u){
+    const m = String(u.comment||"").match(/batch=b([0-9a-z]+)/i);
+    if (!m) return null;
+    const ts = parseInt(m[1], 36);
+    return (ts && isFinite(ts)) ? ts : null;
+  }
+  function userIsUsed(u){
+    if (Array.isArray(umSessions) && umSessions.some(s => (s.user||s.name) === u.name)) return true;
+    const mon = window._umTrafficTotals && window._umTrafficTotals[u.name];
+    if (mon && ((mon.down||0)+(mon.up||0) > 0)) return true;
+    if (allActiveSessions().some(s => s.user === u.name)) return true;
+    return false;
+  }
+  async function smartCleanupCollect(){
+    const [users, links, sessions] = await Promise.all([
+      api("/user-manager/user") || [],
+      api("/user-manager/user-profile") || [],
+      api("/user-manager/session").catch(() => umSessions || [])
+    ]);
+    umUsers = users;
+    umUserProfiles = links;
+    if (Array.isArray(sessions)) umSessions = sessions;
+
+    const doOrphans = qs("cuOrphans").checked;
+    const doExpired = qs("cuExpired").checked;
+    const doUnused = qs("cuUnusedVouchers").checked;
+    const doNoProfile = qs("cuNoProfile").checked;
+    const days = Math.max(1, parseInt(qs("cuDays").value, 10) || 30);
+    const cutoff = Date.now() - days * 86400000;
+
+    const validUsers = new Set();
+    users.forEach(u => { validUsers.add(u[".id"]); validUsers.add(u.name); });
+
+    const orphanLinks = [];
+    if (doOrphans) {
+      links.forEach(l => {
+        if (!l.user || l.user === "unknown" || !validUsers.has(l.user)) orphanLinks.push(l);
+      });
+    }
+
+    const usersToDelete = [];
+    users.forEach(u => {
+      const isVoucher = String(u.comment||"").startsWith(VOUCHER_TAG);
+      const linksFor = findLinksFor(u);
+      const state = linksFor[0] ? (linksFor[0].state || "") : "";
+      if (doExpired && state === "expired") {
+        usersToDelete.push({ u, reason: "expired" });
+        return;
+      }
+      if (doUnused && isVoucher && !userIsUsed(u)) {
+        const ts = voucherCreatedTs(u);
+        // no batch date → treat as old enough only if explicitly unused and checkbox; require ts <= cutoff OR no ts but age unknown - only if ts and old
+        if (ts && ts < cutoff) usersToDelete.push({ u, reason: "unused>"+days+"d" });
+        return;
+      }
+      if (doNoProfile && !linksFor.length && !isVoucher) {
+        usersToDelete.push({ u, reason: "no-profile" });
+      }
+    });
+    // dedupe by id
+    const seen = new Set();
+    const uniqUsers = [];
+    usersToDelete.forEach(x => {
+      if (seen.has(x.u[".id"])) return;
+      seen.add(x.u[".id"]);
+      uniqUsers.push(x);
+    });
+    return { orphanLinks, users: uniqUsers };
+  }
+  async function smartCleanupPreview(){
+    try {
+      const r = await smartCleanupCollect();
+      qs("cleanupPreview").innerHTML =
+        "Orphan profiles: <b style='color:var(--text)'>" + r.orphanLinks.length + "</b><br>" +
+        "Пользователей к удалению: <b style='color:var(--text)'>" + r.users.length + "</b>" +
+        (r.users.length ? "<br><span style='color:var(--text-faint)'>" + r.users.slice(0,12).map(x => esc(x.u.name)+" ("+esc(x.reason)+")").join(", ") + (r.users.length>12?"…":"") + "</span>" : "");
+    } catch(e){ qs("cleanupPreview").textContent = "Ошибка: " + e.message; }
+  }
+  async function smartCleanupRun(){
+    const r = await smartCleanupCollect();
+    const total = r.orphanLinks.length + r.users.length;
+    if (!total){ toast("Нечего удалять"); return; }
+    if (!confirm("Удалить: " + r.orphanLinks.length + " orphan-связей и " + r.users.length + " пользователей?")) return;
+    let ok = 0, fail = 0;
+    for (const l of r.orphanLinks) {
+      try { await api("/user-manager/user-profile/" + encodeURIComponent(l[".id"]), { method: "DELETE" }); ok++; }
+      catch(e){ fail++; }
+    }
+    for (const x of r.users) {
+      try {
+        await removeProfileLinksForUser(x.u[".id"], x.u.name);
+        await api("/user-manager/user/" + encodeURIComponent(x.u[".id"]), { method: "DELETE" });
+        ok++;
+      } catch(e){ fail++; }
+    }
+    toast("Очистка: удалено " + ok + (fail ? ", ошибок " + fail : ""));
+    qs("cleanupModal").classList.remove("open");
+    loadAllUsers();
+  }
+  qs("btnCleanupOrphans").onclick = () => {
+    qs("cleanupPreview").textContent = "";
+    qs("cleanupModal").classList.add("open");
+  };
+  qs("btnCloseCleanup").onclick = () => qs("cleanupModal").classList.remove("open");
+  qs("btnCleanupPreview").onclick = () => smartCleanupPreview();
+  qs("btnCleanupRun").onclick = () => smartCleanupRun();
+
+
+  // Session-Timeout (сек) → Hotspot Active / status.html «Осталось»
+  function validityToTimeoutSecs(validity, profileName){
+    const raw = String(validity || "").trim().toLowerCase();
+    const name = String(profileName || "").trim().toLowerCase();
+    const mapName = { "1hour": 3600, "1h": 3600, "1day": 86400, "1d": 86400, "7day": 604800, "7days": 604800, "7d": 604800, "10day": 864000, "10d": 864000, "14day": 1209600, "14d": 1209600, "30day": 2592000, "30d": 2592000 };
+    if (mapName[name]) return mapName[name];
+    if (!raw) return 0;
+    if (mapName[raw]) return mapName[raw];
+    // произвольное "10d" / "12d"
+    const onlyD = raw.match(/^(\d+)\s*d$/);
+    if (onlyD) return parseInt(onlyD[1], 10) * 86400;
+    let d = 0, h = 0, m = 0, s = 0;
+    const md = raw.match(/(\d+)\s*d/); if (md) d = +md[1];
+    const mh = raw.match(/(\d+)\s*h/); if (mh) h = +mh[1];
+    const mm = raw.match(/(\d+)\s*m(?!s)/); if (mm) m = +mm[1];
+    const ms = raw.match(/(\d+)\s*s/); if (ms) s = +ms[1];
+    const col = raw.match(/^(?:(\d+)d\s+)?(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (col) {
+      d = col[1] ? +col[1] : d;
+      h = +col[2]; m = +col[3]; s = +col[4];
+    }
+    const total = d * 86400 + h * 3600 + m * 60 + s;
+    return total > 0 ? total : 0;
+  }
+  function timeoutSecsForProfile(profileName){
+    const p = profilesCache.find(x => x.name === profileName);
+    let secs = validityToTimeoutSecs(p && p.validity, profileName);
+    if (!secs && p && p.uptimeLimit) secs = validityToTimeoutSecs(p.uptimeLimit, "");
+    if (!secs && p && p.sessionLimit) secs = validityToTimeoutSecs(p.sessionLimit, "");
+    return secs;
+  }
+  async function setUserSessionTimeout(userName, secs){
+    if (!userName || !secs || secs <= 0) return false;
+    let found = null;
+    try {
+      const fresh = await api("/user-manager/user") || [];
+      found = fresh.find(u => u.name === userName);
+    } catch(e){ return false; }
+    if (!found || !found[".id"]) return false;
+    const timeoutPart = "Session-Timeout:" + String(Math.floor(secs));
+    let prev = String(found.attributes || "").trim();
+    // attributes в UM часто одна строка "Session-Timeout:600"
+    let next = timeoutPart;
+    if (prev && !/^Session-Timeout:/i.test(prev)) {
+      const parts = prev.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+        .filter(p => !/^Session-Timeout:/i.test(p));
+      parts.push(timeoutPart);
+      next = parts.join(",");
+    }
+    const bodies = [
+      { attributes: next },
+      { attributes: timeoutPart }
+    ];
+    for (const body of bodies) {
+      try {
+        await api("/user-manager/user/" + encodeURIComponent(found[".id"]), {
+          method: "PATCH",
+          body
+        });
+        return true;
+      } catch(e) { /* try next */ }
+    }
+    return false;
+  }
+
+  // Remove all existing profile links for user, then attach new profile.
+  // ROS 7 UM may store user-profile.user as name OR as .id — handle both.
+  async function assignProfileToUser(userId, userName, profile){
+    if (!profile) return;
+    // Refresh links
+    try { umUserProfiles = await api("/user-manager/user-profile") || []; } catch(e){}
+    const u = { ".id": userId, name: userName };
+    const links = findLinksFor(u);
+    for (const link of links) {
+      try {
+        await api("/user-manager/user-profile/" + encodeURIComponent(link[".id"]), { method: "DELETE" });
+      } catch(e){}
+    }
+    // Try attach by name first (most common on ROS 7), then by .id
+    let lastErr = null;
+    for (const userRef of [userName, userId].filter(Boolean)) {
+      try {
+        await api("/user-manager/user-profile", {
+          method: "PUT",
+          body: { user: userRef, profile: profile }
+        });
+        // refresh cache
+        try { umUserProfiles = await api("/user-manager/user-profile") || []; } catch(e){}
+        return true;
+      } catch(e){ lastErr = e; }
+    }
+    // Fallback: POST add style
+    try {
+      await api("/user-manager/user-profile/add", {
+        method: "POST",
+        body: { user: userName || userId, profile: profile }
+      });
+      try { umUserProfiles = await api("/user-manager/user-profile") || []; } catch(e){}
+      return true;
+    } catch(e){ lastErr = e; }
+    throw lastErr || new Error("Не удалось назначить тариф");
+  }
+
+  async function linkProfileToUser(name, profile){
+    const fresh = await api("/user-manager/user") || [];
+    const found = fresh.find(u => u.name === name);
+    const id = found ? found[".id"] : null;
+    const ok = await assignProfileToUser(id, name, profile);
+    const secs = timeoutSecsForProfile(profile);
+    if (secs) await setUserSessionTimeout(name, secs);
+    return ok;
+  }
+
+  qs("btnToggleAdd").onclick = () => qs("addForm").classList.toggle("open");
+  qs("btnAddUser").onclick = async () => {
+    const name = qs("nName").value.trim();
+    const password = qs("nPass").value;
+    const profile = qs("nProfile").value;
+    const comment = qs("nComment").value.trim();
+    if (!name){ toast("Укажите имя","err"); return; }
+    qs("btnAddUser").disabled = true;
+    try {
+      await api("/user-manager/user", {method:"PUT", body:{name, password, comment}});
+      if (profile) await linkProfileToUser(name, profile);
+      const secs = profile ? timeoutSecsForProfile(profile) : 0;
+      toast(secs ? ("Клиент создан · Session-Timeout " + secs + " с") : "Клиент создан");
+      qs("nName").value = qs("nPass").value = qs("nComment").value = "";
+      qs("addForm").classList.remove("open");
+      loadAllUsers();
+    } catch(e){ toast(e.message,"err"); }
+    finally { qs("btnAddUser").disabled = false; }
+  };
+
+  // CSV users
+  qs("btnExportUsersCsv").onclick = () => {
+    const list = usersList();
+    if (!list.length){ toast("Нет клиентов","err"); return; }
+    const rows = [["name","profile","status","ip","mac","funds","note","online"]];
+    list.forEach(u => rows.push([u.name, u.profile||"", u.label, u.ip||"", u.mac||"", u.funds||"0", u.note||"", u.online?"yes":"no"]));
+    const csv = rows.map(r => r.map(f => '"'+String(f).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+    downloadCsv(csv, "clients-"+Date.now()+".csv");
+  };
+
+  // ===== VOUCHERS =====
+  function renderVouchers(){
+    let list = vouchersList();
+    const q = (qs("voucherSearch").value||"").trim().toUpperCase();
+    if (q) list = list.filter(u => u.name.toUpperCase().includes(q));
+    const statusF = qs("voucherStatusFilter").value;
+    if (statusF) list = list.filter(u => u.cls === statusF);
+    const tariffF = qs("voucherTariffFilter").value;
+    if (tariffF) list = list.filter(u => u.profile === tariffF);
+    list = applySort(list, "vouchersBody", {
+      name: u => u.name,
+      profile: u => (u.profile||"").toLowerCase()
+    });
+
+    const all = vouchersList();
+    qs("voucherCount").textContent = list.length;
+    // unused = never logged in / no sessions / no traffic
+    const unused = all.filter(u => !u.used && !u.disabled && u.cls !== "bad").length;
+    const usedCount = all.filter(u => u.used).length;
+    qs("sVouchers").textContent = all.length + " / " + unused;
+    // store for tooltips if needed
+    qs("sVouchers").title = "всего: " + all.length + " · не использовано: " + unused + " · использовано: " + usedCount;
+
+    const body = qs("vouchersBody");
+    if (!list.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">Коды не найдены</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(u => `
+      <tr>
+        <td><input type="checkbox" data-sel="${esc(u.userId)}"></td>
+        <td class="name">${esc(u.name)}</td>
+        <td>${esc(u.profile||"—")}</td>
+        <td><span class="pill ${u.cls}"><span class="dot"></span>${u.label}</span></td>
+        <td>${esc(u.price||"—")}</td>
+        <td class="row-actions">
+          <button class="btn-danger btn-sm ibtn" data-del="${esc(u.userId)}" title="Удалить">🗑</button>
+        </td>
+      </tr>`).join("");
+    body.querySelectorAll("[data-del]").forEach(b => b.onclick = () => deleteUser(b.dataset.del, b));
+    wireRowCheckboxes("vouchersBody", "vouchers");
+    updateBulkBar("vouchers");
+  }
+  qs("voucherSearch").oninput = renderVouchers;
+  qs("voucherStatusFilter").onchange = renderVouchers;
+  qs("voucherTariffFilter").onchange = renderVouchers;
+  wireSortableHeaders("vouchersBody", renderVouchers);
+  qs("btnRefreshVouchers").onclick = loadAllUsers;
+
+  qs("btnGenerate").onclick = async () => {
+    const profile = qs("vProfile").value;
+    const qty = Math.min(500, Math.max(1, parseInt(qs("vQty").value,10)||1));
+    const len = Math.min(16, Math.max(4, parseInt(qs("vLen").value,10)||8));
+    if (!profile){ toast("Выберите тариф","err"); return; }
+    const tariffInfo = profilesCache.find(p => p.name === profile);
+    const price = tariffInfo ? (tariffInfo.price||"") : "";
+    const batchId = "b" + Date.now().toString(36);
+    const comment = VOUCHER_TAG + "batch=" + batchId + (price ? "|price="+price : "");
+
+    qs("btnGenerate").disabled = true;
+    qs("btnGenerate").textContent = "Генерация…";
+    const created = [];
+    try {
+      const secs = timeoutSecsForProfile(profile);
+      for (let i=0;i<qty;i++){
+        const code = randomCode(len);
+        await api("/user-manager/user", {method:"PUT", body:{name:code, password:code, comment}});
+        await linkProfileToUser(code, profile);
+        if (secs) await setUserSessionTimeout(code, secs);
+        created.push({code, profile, price});
+      }
+      toast(qty + " код(ов) создано" + (secs ? (" · Session-Timeout " + secs + " с") : ""));
+      lastBatch = created;
+      openVoucherModal(created);
+      loadAllUsers();
+    } catch(e){
+      toast("Ошибка: " + e.message + (created.length ? ` (создано ${created.length})` : ""), "err");
+      if (created.length){ lastBatch = created; openVoucherModal(created); loadAllUsers(); }
+    } finally {
+      qs("btnGenerate").disabled = false;
+      qs("btnGenerate").textContent = "Создать коды";
+    }
+  };
+
+  const VOUCHER_UI_KEY = "hc_voucher_ui_v1";
+  function loadVoucherUiPrefs(){
+    try { return JSON.parse(localStorage.getItem(VOUCHER_UI_KEY) || "{}"); } catch(e){ return {}; }
+  }
+  function saveVoucherUiPrefs(){
+    try {
+      localStorage.setItem(VOUCHER_UI_KEY, JSON.stringify({
+        url: (qs("vHotspotUrl") && qs("vHotspotUrl").value) || "",
+        brand: (qs("vBrand") && qs("vBrand").value) || "",
+        ticket: (qs("vTicketType") && qs("vTicketType").value) || "guest"
+      }));
+    } catch(e){}
+  }
+  function defaultHotspotBase(){
+    try {
+      if (baseUrl && /^https?:/i.test(baseUrl)) {
+        const u = new URL(baseUrl);
+        return u.protocol + "//" + u.hostname;
+      }
+    } catch(e){}
+    return location.protocol + "//" + location.hostname;
+  }
+  function hotspotLoginUrl(code){
+    let base = (qs("vHotspotUrl") && qs("vHotspotUrl").value.trim()) || defaultHotspotBase();
+    base = base.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(base)) base = "http://" + base;
+    return base + "/login?username=" + encodeURIComponent(code) + "&password=" + encodeURIComponent(code);
+  }
+  function qrImgUrl(data, size){
+    size = size || 140;
+    return "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&margin=6&data=" + encodeURIComponent(data);
+  }
+  function voucherBrandName(){
+    const v = (qs("vBrand") && qs("vBrand").value.trim()) || "";
+    if (v) return v;
+    const id = (qs("sideIdentity") && qs("sideIdentity").textContent) || "";
+    if (id && id !== "—") return id;
+    return "Wi‑Fi Hotspot";
+  }
+  // restore prefs once DOM ready
+  (function initVoucherPrefs(){
+    const p = loadVoucherUiPrefs();
+    if (qs("vHotspotUrl") && p.url) qs("vHotspotUrl").value = p.url;
+    else if (qs("vHotspotUrl") && !qs("vHotspotUrl").value) qs("vHotspotUrl").placeholder = defaultHotspotBase();
+    if (qs("vBrand") && p.brand) qs("vBrand").value = p.brand;
+    if (qs("vTicketType") && p.ticket) qs("vTicketType").value = p.ticket;
+    ["vHotspotUrl","vBrand","vTicketType"].forEach(id => {
+      if (qs(id)) qs(id).addEventListener("change", saveVoucherUiPrefs);
+    });
+  })();
+
+  function openVoucherModal(list, ticketType){
+    saveVoucherUiPrefs();
+    const brand = voucherBrandName();
+    const type = ticketType || (qs("vTicketType") && qs("vTicketType").value) || "guest";
+    const isGuest = type !== "user";
+    qs("voucherSheet").innerHTML = list.map(v => {
+      const login = hotspotLoginUrl(v.code);
+      const qr = qrImgUrl(login, 140);
+      let price = "";
+      if (v.price !== undefined && v.price !== null && String(v.price).trim() !== "") {
+        price = String(v.price).replace(/[₴грн]/gi, "").trim();
+        if (price) price = price + " грн";
+      }
+      const tariff = v.profile || "Hotspot";
+      if (isGuest) {
+        return `
+      <article class="voucher-card vc-guest">
+        <header class="vc-head">
+          <div class="vc-logo" aria-hidden="true"><span class="vc-mark">RB</span></div>
+          <div class="vc-brand">
+            <div class="vc-brand-name">${esc(brand)}</div>
+            <div class="vc-brand-sub">Гостевой Wi‑Fi</div>
+          </div>
+          ${price ? `<div class="vc-price">${esc(price)}</div>` : ""}
+        </header>
+        <div class="vc-body">
+          <div class="vc-creds">
+            <div class="vc-tariff-pill">${esc(tariff)}</div>
+            <div class="vc-label">Код доступа</div>
+            <div class="vc-value vc-value-lg">${esc(v.code)}</div>
+            <ol class="vc-steps">
+              <li>Подключитесь к сети Wi‑Fi</li>
+              <li>Введите код доступа</li>
+              <li>Откройте браузер и пользуйтесь интернетом</li>
+            </ol>
+          </div>
+          <div class="vc-qr-wrap">
+            <img class="voucher-qr" src="${esc(qr)}" alt="QR ${esc(v.code)}" width="140" height="140" loading="lazy">
+          </div>
+        </div>
+        <footer class="vc-foot">
+          <span class="vc-foot-line">гостевой доступ</span>
+          <span class="vc-code-mini">${esc(v.code)}</span>
+        </footer>
+      </article>`;
+      }
+      return `
+      <article class="voucher-card vc-user">
+        <header class="vc-head">
+          <div class="vc-logo" aria-hidden="true"><span class="vc-mark">RB</span></div>
+          <div class="vc-brand">
+            <div class="vc-brand-name">${esc(brand)}</div>
+            <div class="vc-brand-sub">Доступ пользователя</div>
+          </div>
+          ${price ? `<div class="vc-price">${esc(price)}</div>` : ""}
+        </header>
+        <div class="vc-body">
+          <div class="vc-creds">
+            <div class="vc-tariff-pill">${esc(tariff)}</div>
+            <div class="vc-field">
+              <span class="vc-label">Логин</span>
+              <span class="vc-value vc-box">${esc(v.code)}</span>
+            </div>
+            <div class="vc-field">
+              <span class="vc-label">Пароль</span>
+              <span class="vc-value vc-box">${esc(v.pass || v.code)}</span>
+            </div>
+            <div class="vc-hint">Подключитесь к Wi‑Fi и войдите с логином и паролем</div>
+          </div>
+          <div class="vc-qr-wrap">
+            <img class="voucher-qr" src="${esc(qr)}" alt="QR ${esc(v.code)}" width="140" height="140" loading="lazy">
+          </div>
+        </div>
+        <footer class="vc-foot">
+          <span class="vc-foot-line">логин и пароль</span>
+          <span class="vc-code-mini">${esc(v.code)}</span>
+        </footer>
+      </article>`;
+    }).join("");
+    const modal = qs("voucherModal");
+    if (modal) modal.dataset.ticketType = type;
+    if (qs("modalTicketType")) qs("modalTicketType").value = type;
+    qs("voucherModal").classList.add("open");
+  }
+  qs("btnCloseModal").onclick = () => qs("voucherModal").classList.remove("open");
+  qs("btnPrint").onclick = () => {
+    qs("voucherModal").classList.add("open");
+    setTimeout(() => window.print(), 150);
+  };
+  if (qs("modalTicketType")) {
+    qs("modalTicketType").onchange = () => {
+      if (lastBatch && lastBatch.length) openVoucherModal(lastBatch, qs("modalTicketType").value);
+    };
+  }
+
+  function toCsv(list){
+    const rows = [["code","password","profile","price"]];
+    list.forEach(v => rows.push([v.code, v.code, v.profile, v.price||""]));
+    return rows.map(r => r.map(f => '"'+String(f).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  }
+  function downloadCsv(text, filename){
+    const blob = new Blob(["\uFEFF"+text], {type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  qs("btnCsvFromModal").onclick = () => downloadCsv(toCsv(lastBatch), "vouchers-"+Date.now()+".csv");
+  qs("btnExportCsv").onclick = () => {
+    const list = vouchersList().map(u => ({code:u.name, profile:u.profile, price:u.price}));
+    if (!list.length){ toast("Нет кодов","err"); return; }
+    downloadCsv(toCsv(list), "vouchers-all-"+Date.now()+".csv");
+  };
+
+  // ===== TARIFFS =====
+  async function loadProfiles(){
+    try {
+      const [profiles, limitations, links] = await Promise.all([
+        api("/user-manager/profile") || [],
+        api("/user-manager/limitation") || [],
+        api("/user-manager/profile-limitation") || []
+      ]);
+      profilesCache = profiles.map(p => {
+        const link = links.find(l => l.profile === p.name);
+        const lim = link ? limitations.find(l2 => l2.name === link.limitation) : null;
+        return {
+          id: p[".id"], name: p.name, price: p.price||"", validity: p.validity||"",
+          rateRx: lim ? (lim["rate-limit-rx"]||"") : "",
+          rateTx: lim ? (lim["rate-limit-tx"]||"") : "",
+          uptimeLimit: lim ? (lim["uptime-limit"]||lim["session-limit"]||"") : "",
+          sessionLimit: lim ? (lim["session-limit"]||lim["uptime-limit"]||"") : ""
+        };
+      });
+      const opts = profilesCache.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+      qs("nProfile").innerHTML = opts;
+      qs("vProfile").innerHTML = opts;
+      populateTariffFilters();
+      renderTariffs();
+    } catch(e){ toast("Тарифы: " + e.message, "err"); }
+  }
+
+  let editTariff = null; // { id, name, limName }
+
+  function rateToMbps(v){
+    const s = String(v || "").trim();
+    if (!s) return "";
+    if (/m$/i.test(s)) return String(parseFloat(s) || "");
+    const n = parseInt(s, 10);
+    if (!isFinite(n) || n <= 0) return "";
+    if (n >= 1000000) return String(Math.round(n / 1000000));
+    return String(n);
+  }
+  function normalizeValidityOption(v){
+    const s = String(v || "").trim().toLowerCase();
+    if (!s) return "1d";
+    if (s === "1w" || s === "7d 00:00:00") return "7d";
+    if (/^1h/.test(s)) return "1h";
+    if (/^1d/.test(s)) return "1d";
+    if (/^7d/.test(s) || s === "1w") return "7d";
+    if (/^10d/.test(s)) return "10d";
+    if (/^14d/.test(s)) return "14d";
+    if (/^30d/.test(s)) return "30d";
+    if (/^365d/.test(s)) return "365d";
+    const opt = qs("tValidity") && qs("tValidity").querySelector('option[value="'+s+'"]');
+    return opt ? s : "1d";
+  }
+  function resetTariffForm(){
+    editTariff = null;
+    qs("tName").value = "";
+    qs("tDown").value = "";
+    qs("tUp").value = "";
+    qs("tUptime").value = "";
+    qs("tPrice").value = "";
+    qs("tValidity").value = "1d";
+    qs("tName").disabled = false;
+    qs("btnAddTariff").textContent = "Создать";
+    if (qs("btnCancelTariff")) qs("btnCancelTariff").style.display = "none";
+  }
+  function openEditTariff(p){
+    editTariff = { id: p.id, name: p.name, limName: (p.name + "-lim") };
+    qs("tariffForm").classList.add("open");
+    qs("tName").value = p.name;
+    qs("tName").disabled = true; // имя profile в UM лучше не переименовывать здесь
+    qs("tDown").value = rateToMbps(p.rateRx);
+    qs("tUp").value = rateToMbps(p.rateTx);
+    qs("tValidity").value = normalizeValidityOption(p.validity);
+    qs("tUptime").value = p.sessionLimit || p.uptimeLimit || "";
+    qs("tPrice").value = p.price || "";
+    qs("btnAddTariff").textContent = "Сохранить";
+    if (qs("btnCancelTariff")) qs("btnCancelTariff").style.display = "";
+    qs("tariffForm").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  async function findLimitationId(limName){
+    try {
+      const list = await api("/user-manager/limitation") || [];
+      const hit = list.find(l => l.name === limName);
+      return hit ? hit[".id"] : null;
+    } catch(e){ return null; }
+  }
+  async function syncSessionTimeoutForProfile(profileName){
+    const secs = timeoutSecsForProfile(profileName);
+    if (!secs) return 0;
+    const users = await api("/user-manager/user") || [];
+    const links = await api("/user-manager/user-profile") || [];
+    let n = 0;
+    for (const u of users) {
+      const linked = links.some(l =>
+        (l.profile === profileName) &&
+        (l.user === u.name || l.user === u[".id"])
+      );
+      if (!linked) continue;
+      if (await setUserSessionTimeout(u.name, secs)) n++;
+    }
+    return n;
+  }
+
+  function renderTariffs(){
+    qs("tariffCount").textContent = profilesCache.length;
+    const body = qs("tariffsBody");
+    if (!profilesCache.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">Тарифы не найдены</td></tr>';
+      return;
+    }
+    body.innerHTML = profilesCache.map(p => `
+      <tr>
+        <td class="name">${esc(p.name)}</td>
+        <td>${esc(p.rateRx||"—")} / ${esc(p.rateTx||"—")}</td>
+        <td>${esc(p.validity||"—")}</td>
+        <td>${esc(p.uptimeLimit||"без огр.")}</td>
+        <td>${esc(p.price||"0")}</td>
+        <td class="row-actions">
+          <button class="btn-secondary btn-sm ibtn" data-tedit="${esc(p.name)}" title="Изменить">✎</button>
+          <button class="btn-danger btn-sm ibtn" data-tdel="${esc(p.id)}" title="Удалить">🗑</button>
+        </td>
+      </tr>`).join("");
+    body.querySelectorAll("[data-tedit]").forEach(btn => {
+      btn.onclick = () => {
+        const p = profilesCache.find(x => x.name === btn.dataset.tedit);
+        if (p) openEditTariff(p);
+      };
+    });
+    body.querySelectorAll("[data-tdel]").forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm("Удалить тариф?")) return;
+        btn.disabled = true;
+        try {
+          await api("/user-manager/profile/" + encodeURIComponent(btn.dataset.tdel), {method:"DELETE"});
+          toast("Тариф удалён");
+          loadProfiles();
+        } catch(e){ toast(e.message,"err"); btn.disabled=false; }
+      };
+    });
+  }
+  qs("btnToggleTariff").onclick = () => {
+    const open = qs("tariffForm").classList.toggle("open");
+    if (open) resetTariffForm();
+  };
+  if (qs("btnCancelTariff")) {
+    qs("btnCancelTariff").onclick = () => {
+      resetTariffForm();
+      qs("tariffForm").classList.remove("open");
+    };
+  }
+  qs("btnRefreshTariffs").onclick = loadProfiles;
+  qs("btnAddTariff").onclick = async () => {
+    const name = qs("tName").value.trim();
+    if (!name){ toast("Укажите название","err"); return; }
+    const down = qs("tDown").value.trim();
+    const up = qs("tUp").value.trim();
+    const validity = qs("tValidity").value;
+    const uptime = qs("tUptime").value.trim();
+    const price = qs("tPrice").value.trim() || "0";
+    const sessionFromValidity = ({ "1h":"1h", "1d":"1d", "7d":"7d", "10d":"10d", "14d":"14d", "30d":"30d", "365d":"365d" })[validity] || validity || "";
+    const sessionLim = uptime || sessionFromValidity;
+    const isEdit = !!(editTariff && editTariff.name);
+
+    qs("btnAddTariff").disabled = true;
+    try {
+      const limName = (isEdit ? (editTariff.limName || (name + "-lim")) : (name + "-lim"));
+      const limPayload = {};
+      if (down) limPayload["rate-limit-rx"] = down + "M";
+      if (up) limPayload["rate-limit-tx"] = up + "M";
+      if (sessionLim) {
+        limPayload["session-limit"] = sessionLim;
+        limPayload["uptime-limit"] = sessionLim;
+      }
+
+      if (isEdit) {
+        const priceNum = isFinite(parseFloat(price)) ? parseFloat(price) : price;
+        // profile — минимальный PATCH (без лишних полей → меньше 400)
+        let profileOk = false;
+        const profileBodies = [
+          { validity: validity, price: priceNum },
+          { validity: validity, price: String(priceNum) },
+          { validity: validity }
+        ];
+        for (const body of profileBodies) {
+          try {
+            await api("/user-manager/profile/" + encodeURIComponent(editTariff.id), {
+              method: "PATCH", body
+            });
+            profileOk = true;
+            break;
+          } catch(e) { /* next */ }
+        }
+        if (!profileOk) throw new Error("Не удалось обновить profile (validity/price)");
+
+        // limitation
+        const limId = await findLimitationId(limName);
+        let limOk = false;
+        if (limId) {
+          try {
+            await api("/user-manager/limitation/" + encodeURIComponent(limId), {
+              method: "PATCH", body: limPayload
+            });
+            limOk = true;
+          } catch(e) {
+            // fallback: отдельные поля
+            for (const [k, v] of Object.entries(limPayload)) {
+              try {
+                await api("/user-manager/limitation/" + encodeURIComponent(limId), {
+                  method: "PATCH", body: { [k]: v }
+                });
+                limOk = true;
+              } catch(e2) {}
+            }
+          }
+        } else {
+          try {
+            await api("/user-manager/limitation", {
+              method: "PUT",
+              body: Object.assign({ name: limName }, limPayload)
+            });
+            limOk = true;
+            try {
+              await api("/user-manager/profile-limitation", {
+                method: "PUT",
+                body: { profile: name, limitation: limName }
+              });
+            } catch(e){}
+          } catch(e) {}
+        }
+
+        // Session-Timeout клиентам — без спама ошибок
+        let updated = 0;
+        try { updated = await syncSessionTimeoutForProfile(name); } catch(e) {}
+        toast(
+          "Тариф сохранён · " + validity +
+          (limOk ? "" : " · лимит скорости частично") +
+          (updated ? (" · timeout: " + updated) : "")
+        );
+      } else {
+        await api("/user-manager/limitation", {
+          method: "PUT",
+          body: Object.assign({ name: limName }, limPayload)
+        });
+        await api("/user-manager/profile", {
+          method: "PUT",
+          body: { name, validity, price, "starts-when": "assigned" }
+        });
+        await api("/user-manager/profile-limitation", {
+          method: "PUT",
+          body: { profile: name, limitation: limName }
+        });
+        toast("Тариф создан · " + validity + " (Session-Timeout на ваучерах/клиентах при выдаче)");
+      }
+      resetTariffForm();
+      qs("tariffForm").classList.remove("open");
+      loadProfiles();
+    } catch(e){ toast("Ошибка: " + e.message, "err"); }
+    finally { qs("btnAddTariff").disabled = false; }
+  };
+
+  // ===== CASHBOX =====
+  function voucherCreatedDate(u){
+    const m = String(u.comment||"").match(/batch=b([0-9a-z]+)/i);
+    if (!m) return null;
+    const ts = parseInt(m[1], 36);
+    if (!ts || !isFinite(ts)) return null;
+    const d = new Date(ts);
+    return isNaN(d.getTime()) ? null : d.toISOString().slice(0,10);
+  }
+  function voucherPriceNum(u){
+    const m = String(u.comment||"").match(/price=([^|]+)/);
+    if (!m) return 0;
+    const n = parseFloat(m[1]);
+    return isNaN(n) ? 0 : n;
+  }
+  qs("btnRefreshCashbox").onclick = () => loadAllUsers().then(renderCashbox);
+
+  function renderCashbox(){
+    const vouchers = umUsers.filter(u => String(u.comment||"").startsWith(VOUCHER_TAG));
+    const byDate = {};
+    vouchers.forEach(u => {
+      const d = voucherCreatedDate(u);
+      if (!d) return;
+      if (!byDate[d]) byDate[d] = {count:0, sum:0};
+      byDate[d].count++;
+      byDate[d].sum += voucherPriceNum(u);
+    });
+    const todayD = new Date();
+    const todayISO = todayD.toISOString().slice(0,10);
+    const weekAgo = new Date(todayD.getTime()-6*86400000).toISOString().slice(0,10);
+    const monthAgo = new Date(todayD.getTime()-29*86400000).toISOString().slice(0,10);
+    let today=0, week=0, month=0;
+    Object.keys(byDate).forEach(d => {
+      const sum = byDate[d].sum;
+      if (d === todayISO) today += sum;
+      if (d >= weekAgo) week += sum;
+      if (d >= monthAgo) month += sum;
+    });
+    qs("cashToday").textContent = (today ? today.toLocaleString("uk-UA") : "0") + " ₴";
+    qs("cashWeek").textContent = (week ? week.toLocaleString("uk-UA") : "0") + " ₴";
+    qs("cashMonth").textContent = (month ? month.toLocaleString("uk-UA") : "0") + " ₴";
+
+    const days = [];
+    for (let i=13; i>=0; i--){
+      const d = new Date(todayD.getTime()-i*86400000).toISOString().slice(0,10);
+      days.push({date:d, count:(byDate[d]||{}).count||0, sum:(byDate[d]||{}).sum||0});
+    }
+    const maxSum = Math.max(1, ...days.map(d => d.sum));
+    qs("cashChart").innerHTML = days.map(d => {
+      const h = Math.max(2, Math.round((d.sum/maxSum)*110));
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;" title="${esc(d.date)}: ${esc(d.sum)} (${esc(d.count)} шт)">
+        <div style="width:100%;max-width:18px;height:${h}px;background:${d.sum>0?"var(--accent)":"var(--border)"};border-radius:3px 3px 0 0;"></div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--text-faint);">${esc(d.date.slice(5))}</div>
+      </div>`;
+    }).join("");
+
+    const rows = Object.keys(byDate).sort((a,b) => b<a ? -1 : 1)
+      .map(d => `<tr><td class="name">${esc(d)}</td><td>${esc(byDate[d].count)}</td><td>${esc(byDate[d].sum.toLocaleString("uk-UA"))} ₴</td></tr>`)
+      .join("");
+    qs("cashBody").innerHTML = rows || '<tr class="empty-row"><td colspan="3">Данных пока нет</td></tr>';
+  }
+
+  // ===== HISTORY (User Manager sessions — ROS 7.23) =====
+  let umSessions = [];
+  async function loadHistory(){
+    const body = qs("historyBody");
+    body.innerHTML = '<tr class="empty-row"><td colspan="6">Загрузка…</td></tr>';
+    let lastErr = "";
+    try {
+      let data = null;
+      // Primary: GET /user-manager/session (ROS 7)
+      try {
+        data = await api("/user-manager/session");
+      } catch(e){ lastErr = e.message; }
+      // Fallback POST print
+      if (!data || (Array.isArray(data) && data.length === 0 && lastErr)) {
+        try {
+          data = await api("/user-manager/session/print", { method: "POST", body: {} });
+          lastErr = "";
+        } catch(e){ lastErr = e.message; }
+      }
+      umSessions = Array.isArray(data) ? data : (data ? [data] : []);
+      renderHistory(lastErr);
+      // lifetime totals in background (does not block UI)
+      loadUserTrafficTotals().catch(() => {});
+    } catch(e){
+      body.innerHTML = `<tr class="empty-row"><td colspan="6">Ошибка API: ${esc(e.message)}</td></tr>`;
+      qs("historyCount").textContent = "0";
+    }
+  }
+  function sessPick(s, ...keys){
+    for (const k of keys) {
+      const v = s[k];
+      if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return "";
+  }
+  function sessBytesIn(s){ return Number(sessPick(s, "download", "bytes-in", "input-bytes", "acct-input-octets")) || 0; }
+  function sessBytesOut(s){ return Number(sessPick(s, "upload", "bytes-out", "output-bytes", "acct-output-octets")) || 0; }
+
+  function renderTopClients(){
+    const byUser = {};
+    umSessions.forEach(s => {
+      const user = sessPick(s, "user", "name", "username") || "—";
+      if (!byUser[user]) byUser[user] = { user, sessions: 0, down: 0, up: 0 };
+      byUser[user].sessions++;
+      byUser[user].down += sessBytesIn(s);
+      byUser[user].up += sessBytesOut(s);
+    });
+    // Also merge totals from user monitor cache if present
+    if (window._umTrafficTotals) {
+      Object.keys(window._umTrafficTotals).forEach(name => {
+        const t = window._umTrafficTotals[name];
+        if (!byUser[name]) byUser[name] = { user: name, sessions: 0, down: 0, up: 0 };
+        // Prefer monitor totals if larger (lifetime counters)
+        if ((t.down || 0) > byUser[name].down) byUser[name].down = t.down || 0;
+        if ((t.up || 0) > byUser[name].up) byUser[name].up = t.up || 0;
+      });
+    }
+    const ranked = Object.values(byUser)
+      .map(u => ({ ...u, total: u.down + u.up }))
+      .sort((a, b) => b.total - a.total);
+    const maxT = Math.max(1, ...ranked.map(u => u.total));
+
+    const bars = qs("topClientsBars");
+    if (bars) {
+      bars.innerHTML = ranked.length ? ranked.slice(0, 10).map(u => {
+        const pct = Math.round((u.total / maxT) * 100);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-family:var(--mono);font-size:11px;">
+          <div style="width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:500;">${esc(u.user)}</div>
+          <div style="flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--violet));border-radius:5px;"></div>
+          </div>
+          <div style="width:88px;text-align:right;color:var(--accent);">${fmtBytes(u.total)}</div>
+        </div>`;
+      }).join("") : '<div style="color:var(--text-faint);font-size:12px;">Нет данных по сессиям</div>';
+    }
+
+    const tbody = qs("topClientsBody");
+    if (tbody) {
+      if (!ranked.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Нет данных — появятся после accounting-сессий</td></tr>';
+      } else {
+        tbody.innerHTML = ranked.slice(0, 50).map((u, i) => `
+          <tr>
+            <td style="color:var(--text-faint);">${i + 1}</td>
+            <td class="name">${esc(u.user)}</td>
+            <td>${u.sessions}</td>
+            <td>${fmtBytes(u.down)}</td>
+            <td>${fmtBytes(u.up)}</td>
+            <td style="color:var(--accent);font-weight:600;">${fmtBytes(u.total)}</td>
+          </tr>`).join("");
+      }
+    }
+  }
+
+  function renderHistory(lastErr){
+    let list = umSessions;
+    const q = (qs("historySearch").value || "").trim().toLowerCase();
+    if (q) list = list.filter(s =>
+      String(s.user||s.name||"").toLowerCase().includes(q) ||
+      String(s["calling-station-id"]||"").toLowerCase().includes(q)
+    );
+    list = [...list].sort((a,b) => {
+      const ta = a.started || a["from-time"] || a["start-time"] || "";
+      const tb = b.started || b["from-time"] || b["start-time"] || "";
+      return ta < tb ? 1 : -1;
+    }).slice(0, 300);
+    qs("historyCount").textContent = list.length;
+
+    renderTopClients();
+
+    const body = qs("historyBody");
+    if (!list.length){
+      body.innerHTML = `<tr class="empty-row"><td colspan="6">
+        Сессий пока нет в User Manager.<br><br>
+        <span style="color:var(--text-faint);font-size:12px;line-height:1.6;">
+          История и топ клиентов появятся после accounting-сессий Hotspot → User Manager.
+          ${lastErr ? "<br>API: "+esc(lastErr) : ""}
+        </span>
+      </td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(s => {
+      const user = sessPick(s, "user", "name", "username") || "—";
+      const from = sessPick(s, "started", "from-time", "start-time", "start", "begin-time") || "—";
+      const active = s.active === "true" || s.active === true || s.active === "yes";
+      let till = sessPick(s, "ended", "till-time", "end-time", "stop-time");
+      if (!till) till = active ? "активна" : "—";
+      const uptime = sessPick(s, "uptime", "session-time", "session-uptime") || "—";
+      const bin = sessBytesIn(s);
+      const bout = sessBytesOut(s);
+      const ip = sessPick(s, "user-address", "framed-ip-address", "address", "ip-address") || "—";
+      const mac = sessPick(s, "calling-station-id", "mac-address") || "";
+      const nas = sessPick(s, "nas-ip-address", "nas-identifier") || "";
+      return `<tr>
+        <td class="name">${esc(user)}${active?' <span class="pill good"><span class="dot"></span>live</span>':""}</td>
+        <td>${esc(from)}</td>
+        <td>${esc(till)}</td>
+        <td>${esc(formatUptime(uptime))}</td>
+        <td>${fmtBytes(bin)} / ${fmtBytes(bout)}</td>
+        <td title="${nas ? "NAS: "+esc(nas) : ""}">${esc(ip)}${mac ? "<br><span style=\"color:var(--text-faint);font-size:10px;\">"+esc(mac)+"</span>" : ""}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Optional: pull lifetime totals via user-manager/user/monitor
+  async function loadUserTrafficTotals(){
+    window._umTrafficTotals = window._umTrafficTotals || {};
+    const users = (umUsers || []).slice(0, 40); // limit API load
+    for (const u of users) {
+      try {
+        const res = await api("/user-manager/user/monitor", {
+          method: "POST",
+          body: { once: true, ".id": u[".id"] }
+        });
+        const row = Array.isArray(res) ? res[0] : res;
+        if (row) {
+          window._umTrafficTotals[u.name] = {
+            down: Number(row["total-download"]) || 0,
+            up: Number(row["total-upload"]) || 0,
+            uptime: row["total-uptime"] || ""
+          };
+        }
+      } catch(e){ /* monitor may not be available for all */ }
+    }
+    renderTopClients();
+  }
+  qs("historySearch").oninput = () => renderHistory();
+  qs("btnRefreshHistory").onclick = loadHistory;
+
+  // ===== TRAFFIC HISTORY (localStorage) =====
+  const TRAF_KEY = "hc_traffic_hist_v1";
+  function loadTrafHist(){
+    try { return JSON.parse(localStorage.getItem(TRAF_KEY) || "{}"); } catch(e){ return {}; }
+  }
+  function saveTrafHist(obj){
+    try { localStorage.setItem(TRAF_KEY, JSON.stringify(obj)); } catch(e){}
+  }
+  // Snapshot current active session totals into today's bucket (delta-based would need prev snapshot; we store max seen per day as approximation of peak concurrent volume)
+  let lastTrafSample = {in:0, out:0, t:0};
+  function sampleTraffic(){
+    let tin = 0, tout = 0;
+    allActiveSessions().forEach(s => {
+      tin += Number(s["bytes-in"]) || 0;
+      tout += Number(s["bytes-out"]) || 0;
+    });
+    const now = Date.now();
+    const day = new Date().toISOString().slice(0,10);
+    const hist = loadTrafHist();
+    if (!hist[day]) hist[day] = {in:0, out:0, samples:0, peak:0};
+
+    // If sessions reset (total dropped a lot), add previous sample as "consumed"
+    if (lastTrafSample.t && (tin + tout) < lastTrafSample.in * 0.5) {
+      // session ended / counters reset — accumulate previous as completed volume
+      hist[day].in += lastTrafSample.in;
+      hist[day].out += lastTrafSample.out;
+    }
+    // Track peak concurrent volume of the day
+    const cur = tin + tout;
+    if (cur > hist[day].peak) hist[day].peak = cur;
+    hist[day].samples++;
+    // Keep rolling estimate of "seen traffic" as max of peak (better than nothing without true delta accounting)
+    hist[day].in = Math.max(hist[day].in, tin);
+    hist[day].out = Math.max(hist[day].out, tout);
+
+    lastTrafSample = {in: tin, out: tout, t: now};
+    // prune older than 45 days
+    const cutoff = new Date(Date.now() - 45*86400000).toISOString().slice(0,10);
+    Object.keys(hist).forEach(d => { if (d < cutoff) delete hist[d]; });
+    saveTrafHist(hist);
+  }
+
+  function renderTrafficHist(){
+    const hist = loadTrafHist();
+    const today = new Date().toISOString().slice(0,10);
+    const weekAgo = new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+    const monthAgo = new Date(Date.now()-29*86400000).toISOString().slice(0,10);
+    let tToday=0, tWeek=0, tMonth=0;
+    Object.keys(hist).forEach(d => {
+      const total = (hist[d].in||0) + (hist[d].out||0);
+      if (d === today) tToday += total;
+      if (d >= weekAgo) tWeek += total;
+      if (d >= monthAgo) tMonth += total;
+    });
+    qs("trafToday").textContent = fmtBytes(tToday);
+    qs("trafWeek").textContent = fmtBytes(tWeek);
+    qs("trafMonth").textContent = fmtBytes(tMonth);
+
+    const days = [];
+    for (let i=13; i>=0; i--){
+      const d = new Date(Date.now()-i*86400000).toISOString().slice(0,10);
+      const h = hist[d] || {in:0, out:0, samples:0};
+      days.push({date:d, in:h.in||0, out:h.out||0, samples:h.samples||0});
+    }
+    const maxT = Math.max(1, ...days.map(d => d.in+d.out));
+    qs("trafficHistChart").innerHTML = days.map(d => {
+      const h = Math.max(2, Math.round(((d.in+d.out)/maxT)*120));
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;" title="${esc(d.date)}: ${fmtBytes(d.in+d.out)}">
+        <div style="width:100%;max-width:16px;height:${h}px;background:${(d.in+d.out)>0?"var(--accent)":"var(--border)"};border-radius:3px 3px 0 0;"></div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--text-faint);">${esc(d.date.slice(5))}</div>
+      </div>`;
+    }).join("");
+
+    const rows = Object.keys(hist).sort((a,b)=> b<a?-1:1).map(d => {
+      const h = hist[d];
+      return `<tr>
+        <td class="name">${esc(d)}</td>
+        <td>${fmtBytes(h.in||0)}</td>
+        <td>${fmtBytes(h.out||0)}</td>
+        <td>${fmtBytes((h.in||0)+(h.out||0))}</td>
+        <td>${esc(h.samples||0)}</td>
+      </tr>`;
+    }).join("");
+    qs("trafficHistBody").innerHTML = rows || '<tr class="empty-row"><td colspan="5">Данных пока нет — копится при открытой панели</td></tr>';
+  }
+  qs("btnRefreshTraffic").onclick = () => { sampleTraffic(); renderTrafficHist(); };
+  qs("btnClearTrafficHist").onclick = () => {
+    if (!confirm("Очистить локальную историю трафика?")) return;
+    try { localStorage.removeItem(TRAF_KEY); } catch(e){}
+    renderTrafficHist();
+    toast("История очищена");
+  };
+
+  // Hook sampling into polling
+  const _origStartPolling = startPolling;
+  // re-define sampling on each active load
+  const _origLoadActive = loadActive;
+  // after renderActive we already have data; sample on interval
+
+  // Sample traffic every 15s while connected
+  setInterval(() => {
+    if (qs("app").style.display === "grid") {
+      try { sampleTraffic(); } catch(e){}
+    }
+  }, 15000);
+
+})();
+</script>
+</body>
+</html>
